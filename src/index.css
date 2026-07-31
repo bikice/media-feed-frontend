@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-bg: #0a0a0c;
+  --color-surface: #131316;
+  --color-surface-2: #1c1c21;
+  --color-border: #26262c;
+  --color-purple: #9333ea;
+  --color-purple-soft: #a855f7;
+  --color-pink: #ec4899;
+  --color-text: #f4f4f6;
+  --color-text-dim: #8b8b93;
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+  body {
+    font-family: var(--font-body);
+    overscroll-behavior-y: none;
+  }
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-pink);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .snap-feed {
+    scroll-snap-type: y mandatory;
+  }
+  .snap-item {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .glass {
+    background: color-mix(in oklab, var(--color-surface) 55%, transparent);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid color-mix(in oklab, white 8%, transparent);
+  }
+  .glow-purple {
+    box-shadow: 0 0 40px -10px color-mix(in oklab, var(--color-purple) 60%, transparent);
+  }
+  .glow-pink {
+    box-shadow: 0 0 40px -10px color-mix(in oklab, var(--color-pink) 60%, transparent);
+  }
+  .text-gradient {
+    background: linear-gradient(90deg, var(--color-purple-soft), var(--color-pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-pink) 55%, transparent); }
+  100% { box-shadow: 0 0 0 14px color-mix(in oklab, var(--color-pink) 0%, transparent); }
+}
+.pulse-live {
+  animation: pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3%, -4%) scale(1.05); }
+}
+.drift-slow {
+  animation: drift 14s ease-in-out infinite;
+}
