@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Heart, MessageCircle, Volume2, VolumeX } from 'lucide-react';
 import type { MediaItem } from '@/types';
 import { HlsPlayer } from './HlsPlayer';
 import { VideoProgressBar } from './VideoProgressBar';
+import { VideoTapOverlay } from './VideoTapOverlay';
 
 interface MediaCardProps {
     item: MediaItem;
@@ -65,6 +66,19 @@ function MediaSlot({
     const isHls = type === 'hls' || /\.m3u8(\?|$)/i.test(url);
     const videoRef = useRef<HTMLVideoElement>(null);
 
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        if (isActive) {
+            video.play().catch(() => {
+                // Autoplay was blocked (e.g. no user gesture yet); the tap overlay
+                // lets the person start it manually.
+            });
+        } else {
+            video.pause();
+        }
+    }, [isActive]);
+
     if (isVideoLike && shouldMount) {
         if (isHls) {
             return <HlsPlayer url={url} posterUrl={posterUrl} active={isActive} muted={globalMuted} />;
@@ -81,6 +95,7 @@ function MediaSlot({
                     playsInline
                     className="h-full w-full object-contain"
                 />
+                {isActive && <VideoTapOverlay videoRef={videoRef} />}
                 {isActive && <VideoProgressBar videoRef={videoRef} />}
             </div>
         );

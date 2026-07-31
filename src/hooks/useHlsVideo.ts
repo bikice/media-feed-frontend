@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import Hls from 'hls.js';
+import type Hls from 'hls.js';
 import { loadTokens } from '@/lib/tokenStorage';
 
 interface UseHlsVideoOptions {
@@ -40,32 +40,57 @@ export function useHlsVideo({ src, active }: UseHlsVideoOptions): UseHlsVideoRes
       };
     }
 
-    if (Hls.isSupported()) {
-      const { token } = loadTokens();
-      const hls = new Hls({
-        xhrSetup: (xhr) => {
-          if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        },
-      });
-      hlsRef.current = hls;
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => setIsReady(true));
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          setError('Playback error — this stream could not be loaded.');
-        }
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari / iOS: native HLS support, no auth header injection possible,
-      // relies on the proxy's signed URL for access control.
-      video.src = src;
-      setIsReady(true);
-    } else {
-      setError('HLS playback is not supported in this browser.');
+    let cancelled = false;
+
+    async function attach(video: HTMLVideoElement, src: string) {
+      // hls.js is a sizeable dependency (~250kB) that only matters for the
+      // subset of items that are actually HLS streams, so it's dynamically
+      // imported here instead of statically at the top of the file. Vite
+      // splits it into its own chunk, fetched once, on first use.
+      const { default: HlsCtor } = await import('hls.js');
+      if (cancelled) return;
+
+      if (HlsCtor.isSupported()) {
+        const { token } = loadTokens();
+        const hls = new HlsCtor({
+          xhrSetup: (xhr) => {
+            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          },
+        });
+        hlsRef.current = hls;
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(HlsCtor.Events.MANIFEST_PARSED, () => {
+          setIsReady(true);
+          // We're only ever in this branch when `active` is true, i.e. this
+          // item should be playing right now. The <video>'s `autoplay`
+          // attribute isn't reliable here since the media source is attached
+          // well after mount, so kick off playback explicitly instead.
+          video.play().catch(() => {
+            // Autoplay was blocked (e.g. no user gesture yet); the tap
+            // overlay lets the person start it manually.
+          });
+        });
+        hls.on(HlsCtor.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            setError('Playback error — this stream could not be loaded.');
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari / iOS: native HLS support, no auth header injection possible,
+        // relies on the proxy's signed URL for access control.
+        video.src = src;
+        setIsReady(true);
+        video.play().catch(() => {});
+      } else {
+        setError('HLS playback is not supported in this browser.');
+      }
     }
 
+    attach(video, src);
+
     return () => {
+      cancelled = true;
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
