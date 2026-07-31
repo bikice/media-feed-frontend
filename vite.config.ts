@@ -21,5 +21,8 @@ export default defineConfig(({ mode }) => {
         '/hls-proxy': { target: proxyTarget, changeOrigin: true },
       },
     },
+    build: {
+      chunkSizeWarningLimit: 800,
+    },
   };
 })
