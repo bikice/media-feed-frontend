@@ -1,5 +1,6 @@
 import { AlertCircle } from 'lucide-react';
 import { useHlsVideo } from '@/hooks/useHlsVideo';
+import { VideoProgressBar } from './VideoProgressBar';
 
 interface HlsPlayerProps {
   /**
@@ -19,22 +20,25 @@ export function HlsPlayer({ url, posterUrl, active, muted }: HlsPlayerProps) {
 
   if (error) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-(--color-text-dim)">
-        <AlertCircle className="h-6 w-6" />
-        <p className="text-sm">{error}</p>
-      </div>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-(--color-text-dim)">
+          <AlertCircle className="h-6 w-6" />
+          <p className="text-sm">{error}</p>
+        </div>
     );
   }
 
   return (
-    <video
-      ref={videoRef}
-      poster={posterUrl ?? undefined}
-      muted={muted}
-      loop
-      autoPlay={active}
-      playsInline
-      className="h-full w-full object-contain"
-    />
+      <div className="relative h-full w-full">
+        <video
+            ref={videoRef}
+            poster={posterUrl ?? undefined}
+            muted={muted}
+            loop
+            autoPlay={active}
+            playsInline
+            className="h-full w-full object-contain"
+        />
+        {active && <VideoProgressBar videoRef={videoRef} />}
+      </div>
   );
 }
