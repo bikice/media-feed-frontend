@@ -62,6 +62,24 @@
     background-clip: text;
     color: transparent;
   }
+  /* Opt-in override for the global scrollbar-hiding rule above, for
+     scrollable panels (e.g. the subreddit/user suggestions list) where a
+     visible scrollbar is a useful affordance rather than visual noise. */
+  .scrollbar-visible {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-purple-soft) transparent;
+  }
+  .scrollbar-visible::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-visible::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    background-color: var(--color-purple-soft);
+    border-radius: 9999px;
+  }
 }
 
 @keyframes pulse-ring {
