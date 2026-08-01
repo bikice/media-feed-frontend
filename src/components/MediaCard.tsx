@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { Heart, Image as ImageIcon, Images, MessageCircle, Radio, Video, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Image as ImageIcon, Images, Radio, Video } from 'lucide-react';
 import type { MediaItem } from '@/types';
+import { stripTrailingSlash } from '@/lib/slug';
 import { HlsPlayer } from './HlsPlayer';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
@@ -16,12 +17,14 @@ interface MediaCardProps {
     globalMuted: boolean;
     galleryIndex: number;
     onGalleryIndexChange: (index: number) => void;
-}
-
-function formatVotes(n: number): string {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-    return String(n);
+    /** Re-scope the feed to a given source -- a subreddit or a user slug,
+     *  both go through the same `source` filter. Clears any active
+     *  search/flair since they belonged to the previous scope. */
+    onSelectSource: (sourceSlug: string) => void;
+    /** Re-scope the feed to this item's subreddit AND filter it down to this
+     *  flair -- flairs are only meaningful within their own subreddit, so
+     *  picking one always sets both together. */
+    onSelectFlair: (subredditSlug: string, flair: string) => void;
 }
 
 type MediaKind = 'image' | 'video' | 'hls';
@@ -152,8 +155,9 @@ export function MediaCard({
                               globalMuted,
                               galleryIndex,
                               onGalleryIndexChange,
+                              onSelectSource,
+                              onSelectFlair,
                           }: MediaCardProps) {
-    const [liked, setLiked] = useState(false);
     const gallery = item.gallery && item.gallery.length > 0 ? item.gallery : null;
     const activeSlide = gallery
         ? gallery[Math.min(galleryIndex, gallery.length - 1)]
@@ -241,16 +245,43 @@ export function MediaCard({
                 <div className="min-w-0">
                     <div className="mb-1 flex items-center gap-2 text-xs text-(--color-text-dim)">
                         {item.subreddit && (
-                            <span className="font-medium text-(--color-text)">{item.subreddit.name}</span>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelectSource(stripTrailingSlash(item.subreddit!.slug));
+                                }}
+                                className="font-medium text-(--color-text) hover:underline"
+                            >
+                                {item.subreddit.name}
+                            </button>
                         )}
                         {item.flairName && (
-                            <span className="glass rounded-full px-2 py-0.5 text-[10px]">{item.flairName}</span>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (item.subreddit) {
+                                        onSelectFlair(stripTrailingSlash(item.subreddit.slug), item.flairName!);
+                                    }
+                                }}
+                                disabled={!item.subreddit}
+                                className="glass rounded-full px-2 py-0.5 text-[10px] transition hover:bg-white/10 disabled:cursor-default disabled:hover:bg-transparent"
+                            >
+                                {item.flairName}
+                            </button>
                         )}
                     </div>
                     {item.title && (
                         <p className="line-clamp-2 text-sm font-medium text-(--color-text)">{item.title}</p>
                     )}
-                    <p className="mt-1 text-xs text-(--color-text-dim)">{item.user.name}</p>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectSource(stripTrailingSlash(item.user.slug));
+                        }}
+                        className="mt-1 text-xs text-(--color-text-dim) hover:text-(--color-text) hover:underline"
+                    >
+                        {item.user.name}
+                    </button>
                 </div>
 
             </div>

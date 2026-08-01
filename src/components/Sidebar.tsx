@@ -3,13 +3,7 @@ import { Search, Sparkles, X } from 'lucide-react';
 import type { FeedQuery, InstantSearchResponse, ProviderInfo } from '@/types';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { getInstantSearch } from '@/lib/api';
-
-/** Instant-search slugs come back as e.g. "r/wetspot/" or "user/wetspot/";
- *  the feed endpoint doesn't want (and shouldn't echo back) that trailing
- *  slash once the slug becomes the active `source`. */
-function stripTrailingSlash(slug: string): string {
-    return slug.replace(/\/+$/, '');
-}
+import { stripTrailingSlash } from '@/lib/slug';
 
 interface SidebarProps {
     isOpen: boolean;

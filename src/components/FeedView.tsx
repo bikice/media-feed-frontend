@@ -90,6 +90,20 @@ export function FeedView() {
         onGalleryChange: setGalleryIndex,
     });
 
+    // Re-scope the feed to a source (subreddit or user) tapped from a card's
+    // metadata. Clears any active search text or flair, since both belonged
+    // to the previous scope and may not make sense (or match anything) in
+    // the new one.
+    const handleSelectSource = useCallback((sourceSlug: string) => {
+        setQuery((prev) => ({ ...prev, source: sourceSlug, flair: undefined, q: undefined }));
+    }, []);
+
+    // Flairs only make sense within their own subreddit, so picking one from
+    // a card always sets `source` and `flair` together.
+    const handleSelectFlair = useCallback((subredditSlug: string, flair: string) => {
+        setQuery((prev) => ({ ...prev, source: subredditSlug, flair, q: undefined }));
+    }, []);
+
     return (
         <div className="relative h-dvh w-full overflow-hidden bg-black">
             <div ref={containerRef} className="snap-feed h-full w-full overflow-y-scroll">
@@ -133,6 +147,8 @@ export function FeedView() {
                                     globalMuted={muted}
                                     galleryIndex={index === activeIndex ? galleryIndex : 0}
                                     onGalleryIndexChange={setGalleryIndex}
+                                    onSelectSource={handleSelectSource}
+                                    onSelectFlair={handleSelectFlair}
                                 />
                             ) : (
                                 <div className="h-full w-full bg-black" />
