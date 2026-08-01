@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Heart, MessageCircle, Volume2, VolumeX } from 'lucide-react';
+import { Heart, Image as ImageIcon, Images, MessageCircle, Radio, Video, Volume2, VolumeX } from 'lucide-react';
 import type { MediaItem } from '@/types';
 import { HlsPlayer } from './HlsPlayer';
 import { VideoProgressBar } from './VideoProgressBar';
@@ -22,6 +22,38 @@ function formatVotes(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
     return String(n);
+}
+
+type MediaKind = 'image' | 'video' | 'hls';
+
+/** Single source of truth for "what kind of media is this URL/type", shared
+ *  by MediaSlot (to decide how to render it) and MediaTypeBadge (to decide
+ *  what to label it) so the two can never disagree. */
+function resolveMediaKind(type: string, url: string): MediaKind {
+    if (type === 'hls' || /\.m3u8(\?|$)/i.test(url)) return 'hls';
+    if (type === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(url)) return 'video';
+    return 'image';
+}
+
+const MEDIA_KIND_META: Record<MediaKind, { icon: typeof ImageIcon; label: string }> = {
+    image: { icon: ImageIcon, label: 'Photo' },
+    video: { icon: Video, label: 'Video' },
+    hls: { icon: Radio, label: 'Video' },
+};
+
+/** Small pill in the top-left corner naming the media type of whatever is
+ *  currently on screen. For a gallery this reflects the *active slide*, so
+ *  it updates live as someone swipes from e.g. a photo to a video slide,
+ *  rather than describing the gallery's full (possibly mixed) contents. */
+function MediaTypeBadge({ kind, isGallery }: { kind: MediaKind; isGallery: boolean }) {
+    const { icon: Icon, label } = MEDIA_KIND_META[kind];
+    return (
+        <div className="glass absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-(--color-text-dim)">
+            {isGallery && <Images className="h-3.5 w-3.5 text-(--color-purple-soft)" />}
+            <Icon className="h-3.5 w-3.5" />
+            <span>{label}</span>
+        </div>
+    );
 }
 
 function GalleryDots({ count, index }: { count: number; index: number }) {
@@ -62,8 +94,9 @@ function MediaSlot({
     shouldMount: boolean;
     globalMuted: boolean;
 }) {
-    const isVideoLike = type === 'video' || type === 'hls' || /\.(mp4|webm|m3u8)(\?|$)/i.test(url);
-    const isHls = type === 'hls' || /\.m3u8(\?|$)/i.test(url);
+    const kind = resolveMediaKind(type, url);
+    const isVideoLike = kind === 'video' || kind === 'hls';
+    const isHls = kind === 'hls';
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
@@ -127,6 +160,7 @@ export function MediaCard({
         : item.mediaUrl
             ? { type: item.type, mediaUrl: item.mediaUrl, posterUrl: item.posterUrl }
             : null;
+    const activeKind = activeSlide ? resolveMediaKind(activeSlide.type, activeSlide.mediaUrl) : null;
 
     return (
         <section className="snap-item relative flex h-dvh w-full items-center justify-center bg-black">
@@ -174,6 +208,8 @@ export function MediaCard({
                     />
                 )
             )}
+
+            {activeKind && <MediaTypeBadge kind={activeKind} isGallery={!!gallery && gallery.length > 1} />}
 
             {gallery && (
                 <>
