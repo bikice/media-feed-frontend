@@ -93,6 +93,7 @@ function MediaSlot({
                     loop
                     autoPlay={isActive}
                     playsInline
+                    preload="auto"
                     className="h-full w-full object-contain"
                 />
                 {isActive && <VideoTapOverlay videoRef={videoRef} />}

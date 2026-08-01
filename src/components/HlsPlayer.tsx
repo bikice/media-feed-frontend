@@ -12,6 +12,13 @@ interface HlsPlayerProps {
      */
     url: string;
     posterUrl: string | null;
+    /**
+     * Whether this instance should be playing right now. This component is
+     * mounted for the whole active ± 1 window (see MediaCard), so a `false`
+     * value here doesn't mean "don't load" -- the stream still attaches and
+     * buffers in the background via useHlsVideo; it just stays paused until
+     * this flips true.
+     */
     active: boolean;
     muted: boolean;
 }
@@ -37,6 +44,7 @@ export function HlsPlayer({ url, posterUrl, active, muted }: HlsPlayerProps) {
                 loop
                 autoPlay={active}
                 playsInline
+                preload="auto"
                 className="h-full w-full object-contain"
             />
             {active && <VideoTapOverlay videoRef={videoRef} />}
