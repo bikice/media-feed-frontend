@@ -12,6 +12,14 @@ interface UseFeedNavigationOptions {
   galleryIndex: number;
   galleryLength: number;
   onGalleryChange: (index: number) => void;
+  /** Whether the discovery sidebar is currently open. While it's open, the
+   *  sidebar owns D-pad/arrow input (see useSpatialNavigation), so this
+   *  hook stands down entirely rather than fighting over key events. */
+  sidebarOpen: boolean;
+  /** Opens the sidebar -- invoked when ArrowRight is pressed at the "right
+   *  edge" of the feed, i.e. there's no further gallery slide to page to
+   *  (or the active item has no gallery at all). */
+  onOpenSidebar: () => void;
 }
 
 const SWIPE_THRESHOLD_PX = 50;
@@ -25,19 +33,26 @@ const SWIPE_THRESHOLD_PX = 50;
  * on the container, so this hook does not duplicate that logic.
  */
 export function useFeedNavigation({
-  containerRef,
-  itemCount,
-  activeIndex,
-  scrollToIndex,
-  isGalleryActive,
-  galleryIndex,
-  galleryLength,
-  onGalleryChange,
-}: UseFeedNavigationOptions) {
+                                    containerRef,
+                                    itemCount,
+                                    activeIndex,
+                                    scrollToIndex,
+                                    isGalleryActive,
+                                    galleryIndex,
+                                    galleryLength,
+                                    onGalleryChange,
+                                    sidebarOpen,
+                                    onOpenSidebar,
+                                  }: UseFeedNavigationOptions) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // The sidebar's own spatial-navigation hook drives arrow keys while
+      // it's open (including closing itself on ArrowLeft at its left
+      // edge), so back off entirely rather than double-handling them.
+      if (sidebarOpen) return;
+
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
@@ -51,6 +66,12 @@ export function useFeedNavigation({
           if (isGalleryActive && galleryIndex < galleryLength - 1) {
             e.preventDefault();
             onGalleryChange(galleryIndex + 1);
+          } else {
+            // No more gallery slides to the right (or no gallery at all) --
+            // this counts as the "right edge" of the feed, so open the
+            // sidebar instead.
+            e.preventDefault();
+            onOpenSidebar();
           }
           break;
         case 'ArrowLeft':
@@ -63,7 +84,17 @@ export function useFeedNavigation({
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeIndex, itemCount, scrollToIndex, isGalleryActive, galleryIndex, galleryLength, onGalleryChange]);
+  }, [
+    activeIndex,
+    itemCount,
+    scrollToIndex,
+    isGalleryActive,
+    galleryIndex,
+    galleryLength,
+    onGalleryChange,
+    sidebarOpen,
+    onOpenSidebar,
+  ]);
 
   useEffect(() => {
     const el = containerRef.current;

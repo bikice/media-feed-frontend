@@ -75,6 +75,16 @@ export function FeedView() {
         return () => observer.disconnect();
     }, [items.length, setActiveIndex]);
 
+    // Fire TV / D-pad support: opening the sidebar hands focus to it (see
+    // useSpatialNavigation), and closing it -- whether via the left-edge
+    // D-pad press, the X button, or tapping the backdrop -- hands focus
+    // back to the feed so ArrowUp/Down keep driving it immediately.
+    const openSidebar = useCallback(() => setSidebarOpen(true), []);
+    const closeSidebar = useCallback(() => {
+        setSidebarOpen(false);
+        requestAnimationFrame(() => containerRef.current?.focus());
+    }, []);
+
     const activeItem = items[activeIndex];
     const activeGallery = activeItem?.gallery;
     const isGalleryActive = !!activeGallery && activeGallery.length > 1;
@@ -88,6 +98,8 @@ export function FeedView() {
         galleryIndex,
         galleryLength: activeGallery?.length ?? 0,
         onGalleryChange: setGalleryIndex,
+        sidebarOpen,
+        onOpenSidebar: openSidebar,
     });
 
     // Re-scope the feed to a source (subreddit or user) tapped from a card's
@@ -106,7 +118,7 @@ export function FeedView() {
 
     return (
         <div className="relative h-dvh w-full overflow-hidden bg-black">
-            <div ref={containerRef} className="snap-feed h-full w-full overflow-y-scroll">
+            <div ref={containerRef} tabIndex={-1} className="snap-feed h-full w-full overflow-y-scroll outline-none">
                 {isLoading && items.length === 0 && (
                     <div className="flex h-dvh w-full items-center justify-center">
                         <div className="h-8 w-8 animate-spin rounded-full border-2 border-(--color-purple) border-t-transparent" />
@@ -161,12 +173,12 @@ export function FeedView() {
             <OverlayNav
                 muted={muted}
                 onToggleMute={() => setMuted((v) => !v)}
-                onToggleSidebar={() => setSidebarOpen((v) => !v)}
+                onToggleSidebar={() => (sidebarOpen ? closeSidebar() : openSidebar())}
             />
 
             <Sidebar
                 isOpen={sidebarOpen}
-                onClose={() => setSidebarOpen(false)}
+                onClose={closeSidebar}
                 providers={providers}
                 provider={provider}
                 onProviderChange={(slug) => {

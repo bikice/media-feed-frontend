@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, Sparkles, X } from 'lucide-react';
 import type { FeedQuery, InstantSearchResponse, ProviderInfo } from '@/types';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import { getInstantSearch } from '@/lib/api';
 import { stripTrailingSlash } from '@/lib/slug';
 
@@ -32,6 +33,26 @@ export function Sidebar({
 
     const activeProviderInfo = providers.find((p) => p.slug === provider);
     const orderParam = activeProviderInfo?.feedParams.find((p) => p.name === 'order');
+
+    const asideRef = useRef<HTMLElement>(null);
+
+    // D-pad navigation for Fire TV etc.: while the sidebar is open, arrow
+    // keys move focus between its buttons/input by on-screen position.
+    // Pressing left with nothing further left to focus on -- i.e. already
+    // at the sidebar's left edge -- closes it, mirroring how ArrowRight at
+    // the feed's right edge opens it (see useFeedNavigation).
+    const handleEdge = useCallback(
+        (direction: 'up' | 'down' | 'left' | 'right') => {
+            if (direction === 'left') {
+                onClose();
+                return true;
+            }
+            return false;
+        },
+        [onClose],
+    );
+
+    useSpatialNavigation(asideRef, { active: isOpen, onEdge: handleEdge });
 
     useEffect(() => {
         onQueryChange({ ...query, q: debouncedSearch || undefined });
@@ -66,6 +87,7 @@ export function Sidebar({
                 />
             )}
             <aside
+                ref={asideRef}
                 className={`glass fixed right-0 top-0 z-40 h-dvh w-[85vw] max-w-sm border-l border-(--color-border) p-5 transition-transform duration-300 ${
                     isOpen ? 'translate-x-0' : 'translate-x-full'
                 }`}
@@ -83,7 +105,7 @@ export function Sidebar({
 
                 {/* Provider selector */}
                 <label className="mb-1.5 block text-xs font-medium text-(--color-text-dim)">Provider</label>
-                <div className="mb-5 flex flex-wrap gap-2">
+                <div className="mb-5 flex flex-wrap gap-2" data-tv-row>
                     {providers.map((p) => (
                         <button
                             key={p.slug}
@@ -164,7 +186,7 @@ export function Sidebar({
                 {orderParam?.enum && (
                     <>
                         <label className="mb-1.5 block text-xs font-medium text-(--color-text-dim)">Sort</label>
-                        <div className="mb-5 flex flex-wrap gap-2">
+                        <div className="mb-5 flex flex-wrap gap-2" data-tv-row>
                             {orderParam.enum.map((opt) => (
                                 <button
                                     key={opt}
@@ -186,7 +208,7 @@ export function Sidebar({
                 {availableFlairs && availableFlairs.length > 0 && (
                     <>
                         <label className="mb-1.5 block text-xs font-medium text-(--color-text-dim)">Flair</label>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2" data-tv-row>
                             <button
                                 onClick={() => onQueryChange({ ...query, flair: undefined })}
                                 className={`rounded-full border px-3 py-1 text-xs transition ${
