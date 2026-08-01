@@ -253,35 +253,6 @@ export function MediaCard({
                     <p className="mt-1 text-xs text-(--color-text-dim)">{item.user.name}</p>
                 </div>
 
-                <div className="flex shrink-0 flex-col items-center gap-4">
-                    <button
-                        onClick={() => setLiked((v) => !v)}
-                        className="flex flex-col items-center gap-1"
-                        aria-pressed={liked}
-                        aria-label="Like"
-                    >
-                        <Heart
-                            className={`h-6 w-6 transition-colors ${liked ? 'fill-(--color-pink) text-(--color-pink)' : 'text-white'}`}
-                        />
-                        <span className="text-[11px] text-(--color-text-dim)">{formatVotes(item.votes)}</span>
-                    </button>
-                    {item.permalink && (
-                        <a
-                            href={item.permalink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex flex-col items-center gap-1 text-white"
-                            aria-label="Open discussion"
-                        >
-                            <MessageCircle className="h-6 w-6" />
-                        </a>
-                    )}
-                    {globalMuted ? (
-                        <VolumeX className="h-5 w-5 text-(--color-text-dim)" />
-                    ) : (
-                        <Volume2 className="h-5 w-5 text-(--color-text-dim)" />
-                    )}
-                </div>
             </div>
         </section>
     );
