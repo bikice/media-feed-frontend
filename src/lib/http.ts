@@ -30,7 +30,13 @@ let refreshInFlight: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
   const { refreshToken } = loadTokens();
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    // No refresh token to fall back on -- this session can't be renewed, so
+    // tear it down properly instead of leaving the caller to fail silently
+    // on every subsequent request while the app still thinks it's logged in.
+    notifySessionExpired();
+    return null;
+  }
 
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
@@ -87,6 +93,12 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     const newToken = await refreshAccessToken();
     if (newToken) {
       res = await doFetch();
+      if (res.status === 401) {
+        // The freshly refreshed token was rejected too -- the session itself
+        // is invalid (not just the access token), so tear it down rather
+        // than letting the caller retry forever.
+        notifySessionExpired();
+      }
     }
   }
 
