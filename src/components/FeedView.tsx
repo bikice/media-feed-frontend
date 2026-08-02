@@ -18,6 +18,7 @@ export function FeedView() {
     const [query, setQuery] = useState<FeedQuery>(initialPrefs?.query ?? {});
     const [muted, setMuted] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [chromeVisible, setChromeVisible] = useState(true);
     const [galleryIndex, setGalleryIndex] = useState(0);
 
     useEffect(() => {
@@ -85,6 +86,11 @@ export function FeedView() {
         requestAnimationFrame(() => containerRef.current?.focus());
     }, []);
 
+    // Select/Enter toggles the feed's UI chrome (OverlayNav, media-type
+    // badge, bottom gradient + metadata) for an unobstructed view of the
+    // media -- only while the sidebar is closed (see useFeedNavigation).
+    const toggleChrome = useCallback(() => setChromeVisible((v) => !v), []);
+
     const activeItem = items[activeIndex];
     const activeGallery = activeItem?.gallery;
     const isGalleryActive = !!activeGallery && activeGallery.length > 1;
@@ -100,6 +106,7 @@ export function FeedView() {
         onGalleryChange: setGalleryIndex,
         sidebarOpen,
         onOpenSidebar: openSidebar,
+        onToggleChrome: toggleChrome,
     });
 
     // Re-scope the feed to a source (subreddit or user) tapped from a card's
@@ -161,6 +168,7 @@ export function FeedView() {
                                     onGalleryIndexChange={setGalleryIndex}
                                     onSelectSource={handleSelectSource}
                                     onSelectFlair={handleSelectFlair}
+                                    chromeVisible={chromeVisible}
                                 />
                             ) : (
                                 <div className="h-full w-full bg-black" />
@@ -170,7 +178,9 @@ export function FeedView() {
                 })}
             </div>
 
-            <OverlayNav onToggleSidebar={() => (sidebarOpen ? closeSidebar() : openSidebar())} />
+            {chromeVisible && (
+                <OverlayNav onToggleSidebar={() => (sidebarOpen ? closeSidebar() : openSidebar())} />
+            )}
 
             <Sidebar
                 isOpen={sidebarOpen}

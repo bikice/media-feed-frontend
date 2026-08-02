@@ -25,6 +25,11 @@ interface MediaCardProps {
      *  flair -- flairs are only meaningful within their own subreddit, so
      *  picking one always sets both together. */
     onSelectFlair: (subredditSlug: string, flair: string) => void;
+    /** Whether the feed's UI chrome is currently shown. When false, this
+     *  card hides its media-type badge and the bottom gradient + metadata
+     *  text, for an unobstructed view of the media (toggled via Select/
+     *  Enter -- see useFeedNavigation). */
+    chromeVisible: boolean;
 }
 
 type MediaKind = 'image' | 'video' | 'hls';
@@ -157,6 +162,7 @@ export function MediaCard({
                               onGalleryIndexChange,
                               onSelectSource,
                               onSelectFlair,
+                              chromeVisible,
                           }: MediaCardProps) {
     const gallery = item.gallery && item.gallery.length > 0 ? item.gallery : null;
     const activeSlide = gallery
@@ -213,7 +219,9 @@ export function MediaCard({
                 )
             )}
 
-            {activeKind && <MediaTypeBadge kind={activeKind} isGallery={!!gallery && gallery.length > 1} />}
+            {chromeVisible && activeKind && (
+                <MediaTypeBadge kind={activeKind} isGallery={!!gallery && gallery.length > 1} />
+            )}
 
             {gallery && (
                 <>
@@ -239,52 +247,55 @@ export function MediaCard({
                 </>
             )}
 
-            {/* Gradient scrim + metadata */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/85 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-4 p-5">
-                <div className="min-w-0">
-                    <div className="mb-1 flex items-center gap-2 text-xs text-(--color-text-dim)">
-                        {item.subreddit && (
+            {chromeVisible && (
+                <>
+                    {/* Gradient scrim + metadata */}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/85 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-4 p-5">
+                        <div className="min-w-0">
+                            <div className="mb-1 flex items-center gap-2 text-xs text-(--color-text-dim)">
+                                {item.subreddit && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onSelectSource(stripTrailingSlash(item.subreddit!.slug));
+                                        }}
+                                        className="font-medium text-(--color-text) hover:underline"
+                                    >
+                                        {item.subreddit.name}
+                                    </button>
+                                )}
+                                {item.flairName && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (item.subreddit) {
+                                                onSelectFlair(stripTrailingSlash(item.subreddit.slug), item.flairName!);
+                                            }
+                                        }}
+                                        disabled={!item.subreddit}
+                                        className="glass rounded-full px-2 py-0.5 text-[10px] transition hover:bg-white/10 disabled:cursor-default disabled:hover:bg-transparent"
+                                    >
+                                        {item.flairName}
+                                    </button>
+                                )}
+                            </div>
+                            {item.title && (
+                                <p className="line-clamp-2 text-sm font-medium text-(--color-text)">{item.title}</p>
+                            )}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onSelectSource(stripTrailingSlash(item.subreddit!.slug));
+                                    onSelectSource(stripTrailingSlash(item.user.slug));
                                 }}
-                                className="font-medium text-(--color-text) hover:underline"
+                                className="mt-1 text-xs text-(--color-text-dim) hover:text-(--color-text) hover:underline"
                             >
-                                {item.subreddit.name}
+                                {item.user.name}
                             </button>
-                        )}
-                        {item.flairName && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (item.subreddit) {
-                                        onSelectFlair(stripTrailingSlash(item.subreddit.slug), item.flairName!);
-                                    }
-                                }}
-                                disabled={!item.subreddit}
-                                className="glass rounded-full px-2 py-0.5 text-[10px] transition hover:bg-white/10 disabled:cursor-default disabled:hover:bg-transparent"
-                            >
-                                {item.flairName}
-                            </button>
-                        )}
+                        </div>
                     </div>
-                    {item.title && (
-                        <p className="line-clamp-2 text-sm font-medium text-(--color-text)">{item.title}</p>
-                    )}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectSource(stripTrailingSlash(item.user.slug));
-                        }}
-                        className="mt-1 text-xs text-(--color-text-dim) hover:text-(--color-text) hover:underline"
-                    >
-                        {item.user.name}
-                    </button>
-                </div>
-
-            </div>
+                </>
+            )}
         </section>
     );
 }
