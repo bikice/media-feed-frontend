@@ -170,11 +170,7 @@ export function FeedView() {
                 })}
             </div>
 
-            <OverlayNav
-                muted={muted}
-                onToggleMute={() => setMuted((v) => !v)}
-                onToggleSidebar={() => (sidebarOpen ? closeSidebar() : openSidebar())}
-            />
+            <OverlayNav onToggleSidebar={() => (sidebarOpen ? closeSidebar() : openSidebar())} />
 
             <Sidebar
                 isOpen={sidebarOpen}
@@ -188,6 +184,8 @@ export function FeedView() {
                 query={query}
                 onQueryChange={setQuery}
                 availableFlairs={availableFlairs}
+                muted={muted}
+                onToggleMute={() => setMuted((v) => !v)}
             />
         </div>
     );

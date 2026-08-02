@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Search, Sparkles, X } from 'lucide-react';
+import { LogOut, Search, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
 import type { FeedQuery, InstantSearchResponse, ProviderInfo } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import { getInstantSearch } from '@/lib/api';
@@ -15,6 +16,8 @@ interface SidebarProps {
     query: FeedQuery;
     onQueryChange: (next: FeedQuery) => void;
     availableFlairs: string[] | null;
+    muted: boolean;
+    onToggleMute: () => void;
 }
 
 export function Sidebar({
@@ -26,7 +29,10 @@ export function Sidebar({
                             query,
                             onQueryChange,
                             availableFlairs,
+                            muted,
+                            onToggleMute,
                         }: SidebarProps) {
+    const { username, logout } = useAuth();
     const [searchText, setSearchText] = useState(query.q ?? '');
     const debouncedSearch = useDebouncedValue(searchText, 350);
     const [suggestions, setSuggestions] = useState<InstantSearchResponse | null>(null);
@@ -235,6 +241,28 @@ export function Sidebar({
                         </div>
                     </>
                 )}
+
+                {/* Account & playback settings */}
+                <div className="mt-5 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3">
+                    <p className="mb-2 truncate text-xs text-(--color-text-dim)">{username ?? 'Signed in'}</p>
+                    <div className="flex items-center gap-2" data-tv-row>
+                        <button
+                            onClick={onToggleMute}
+                            aria-label={muted ? 'Unmute' : 'Mute'}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-(--color-border) px-3 py-2 text-sm text-(--color-text) transition hover:bg-white/8"
+                        >
+                            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                            {muted ? 'Muted' : 'Sound on'}
+                        </button>
+                        <button
+                            onClick={() => logout()}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-(--color-border) px-3 py-2 text-sm text-(--color-text-dim) transition hover:bg-white/8 hover:text-(--color-text)"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Log out
+                        </button>
+                    </div>
+                </div>
             </aside>
         </>
     );
