@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Image as ImageIcon, Images, Radio, Video } from 'lucide-react';
 import type { MediaItem } from '@/types';
+import type { SeekPreview } from '@/hooks/useFeedNavigation';
 import { stripTrailingSlash } from '@/lib/slug';
 import { HlsPlayer } from './HlsPlayer';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
+import { VideoSeekIndicator } from './VideoSeekIndicator';
 
 interface MediaCardProps {
     item: MediaItem;
@@ -30,6 +32,10 @@ interface MediaCardProps {
      *  text, for an unobstructed view of the media (toggled via Select/
      *  Enter -- see useFeedNavigation). */
     chromeVisible: boolean;
+    /** In-progress MediaFastForward/MediaRewind feedback from
+     *  useFeedNavigation, or null when no seek is active. Only meaningful
+     *  (and only rendered) while this card `isActive`. */
+    seekPreview: SeekPreview | null;
 }
 
 type MediaKind = 'image' | 'video' | 'hls';
@@ -163,6 +169,7 @@ export function MediaCard({
                               onSelectSource,
                               onSelectFlair,
                               chromeVisible,
+                              seekPreview,
                           }: MediaCardProps) {
     const gallery = item.gallery && item.gallery.length > 0 ? item.gallery : null;
     const activeSlide = gallery
@@ -222,6 +229,8 @@ export function MediaCard({
             {chromeVisible && activeKind && (
                 <MediaTypeBadge kind={activeKind} isGallery={!!gallery && gallery.length > 1} />
             )}
+
+            {isActive && seekPreview && <VideoSeekIndicator seek={seekPreview} />}
 
             {gallery && (
                 <>

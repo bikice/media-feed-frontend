@@ -95,7 +95,7 @@ export function FeedView() {
     const activeGallery = activeItem?.gallery;
     const isGalleryActive = !!activeGallery && activeGallery.length > 1;
 
-    useFeedNavigation({
+    const { seekPreview } = useFeedNavigation({
         containerRef,
         itemCount: items.length,
         activeIndex,
@@ -169,6 +169,7 @@ export function FeedView() {
                                     onSelectSource={handleSelectSource}
                                     onSelectFlair={handleSelectFlair}
                                     chromeVisible={chromeVisible}
+                                    seekPreview={seekPreview}
                                 />
                             ) : (
                                 <div className="h-full w-full bg-black" />
