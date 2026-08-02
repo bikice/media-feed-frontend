@@ -190,7 +190,10 @@ export function FeedView() {
                 provider={provider}
                 onProviderChange={(slug) => {
                     setProvider(slug);
-                    setQuery({});
+                    // Keep the active search text (it's not provider-specific),
+                    // but source/flair/order belonged to the old provider's
+                    // scope and sort options, so drop them.
+                    setQuery((prev) => ({ q: prev.q }));
                 }}
                 query={query}
                 onQueryChange={setQuery}

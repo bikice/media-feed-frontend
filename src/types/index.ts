@@ -78,8 +78,12 @@ export interface ProvidersResponse {
 
 export interface InstantSearchResponse {
   queries: string[];
-  users: { slug: string; name: string; profileIcon: string | null }[];
-  subreddits: { slug: string; name: string; communityIcon: string | null }[];
+  /** Some providers omit this key entirely rather than sending `[]`. */
+  users?: { slug: string; name: string; profileIcon: string | null }[];
+  /** Reddit-style providers only. */
+  subreddits?: { slug: string; name: string; communityIcon: string | null }[];
+  /** Non-subreddit providers scope by category instead. */
+  categories?: { slug: string; name: string }[];
 }
 
 export interface AuthTokens {

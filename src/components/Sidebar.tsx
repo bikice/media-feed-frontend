@@ -142,36 +142,52 @@ export function Sidebar({
                     />
                 </div>
 
-                {suggestions && (suggestions.subreddits.length > 0 || suggestions.users.length > 0) && (
-                    <div className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
-                        {suggestions.subreddits.map((s) => (
-                            <button
-                                key={s.slug}
-                                onClick={() => {
-                                    onQueryChange({ ...query, source: stripTrailingSlash(s.slug), q: undefined, flair: undefined });
-                                    setSearchText('');
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
-                            >
-                                <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-purple-soft)" />
-                                <span className="truncate">{s.name}</span>
-                            </button>
-                        ))}
-                        {suggestions.users.map((u) => (
-                            <button
-                                key={u.slug}
-                                onClick={() => {
-                                    onQueryChange({ ...query, source: stripTrailingSlash(u.slug), q: undefined, flair: undefined });
-                                    setSearchText('');
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
-                            >
-                                <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-pink)" />
-                                <span className="truncate">{u.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {suggestions &&
+                    ((suggestions.subreddits?.length ?? 0) > 0 ||
+                        (suggestions.users?.length ?? 0) > 0 ||
+                        (suggestions.categories?.length ?? 0) > 0) && (
+                        <div className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
+                            {suggestions.subreddits?.map((s) => (
+                                <button
+                                    key={s.slug}
+                                    onClick={() => {
+                                        onQueryChange({ ...query, source: stripTrailingSlash(s.slug), q: undefined, flair: undefined });
+                                        setSearchText('');
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-purple-soft)" />
+                                    <span className="truncate">{s.name}</span>
+                                </button>
+                            ))}
+                            {suggestions.categories?.map((c) => (
+                                <button
+                                    key={c.slug}
+                                    onClick={() => {
+                                        onQueryChange({ ...query, source: stripTrailingSlash(c.slug), q: undefined, flair: undefined });
+                                        setSearchText('');
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-purple-soft)" />
+                                    <span className="truncate">{c.name}</span>
+                                </button>
+                            ))}
+                            {suggestions.users?.map((u) => (
+                                <button
+                                    key={u.slug}
+                                    onClick={() => {
+                                        onQueryChange({ ...query, source: stripTrailingSlash(u.slug), q: undefined, flair: undefined });
+                                        setSearchText('');
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-pink)" />
+                                    <span className="truncate">{u.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                 {query.source && (
                     <div className="mb-5 flex items-center justify-between rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2 text-sm">
