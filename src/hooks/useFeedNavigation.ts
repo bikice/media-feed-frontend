@@ -37,10 +37,14 @@ export interface SeekPreview {
 
 const SWIPE_THRESHOLD_PX = 50;
 
-// Fast-forward jumps further per press than rewind -- mirrors how most
-// remotes/TV apps bias towards skipping ahead over backing up.
-const FAST_FORWARD_STEP_SECONDS = 30;
-const REWIND_STEP_SECONDS = 10;
+// Seek step scales with the video's own length: forward steps roughly
+// "one second per minute of runtime" (a 30-min video steps 30s, a 60-min
+// video steps 60s, ...), and backward steps at a third of that (30-min ->
+// 10s, 60-min -> 20s, ...). Clamped so very short clips don't get a
+// near-zero step and very long ones don't get an absurdly large one.
+const MIN_FORWARD_STEP_SECONDS = 5;
+const MAX_FORWARD_STEP_SECONDS = 300; // 5 minutes, for e.g. multi-hour streams
+const MIN_BACKWARD_STEP_SECONDS = 2;
 // How long a press has to be held before it starts auto-repeating.
 const SEEK_HOLD_DELAY_MS = 400;
 // Cadence of the auto-repeat once a press has been held past the delay
@@ -55,11 +59,14 @@ const SEEK_PREVIEW_LINGER_MS = 800;
  *  - ArrowUp/ArrowDown -> move one item up/down in the main vertical feed
  *  - ArrowLeft/ArrowRight -> page through the active item's gallery (if any)
  *  - MediaPlayPause / Space -> toggle play/pause on the active item's video/HLS player
- *  - MediaFastForward/MediaRewind -> seek the active item's video/HLS player,
- *    30s/10s per press; holding a key repeats (stacks) the same step on an
- *    interval for as long as it's held. `seekPreview` (the hook's return
- *    value) tracks the in-progress direction + cumulative offset so the
- *    caller can render a preview indicator over the video.
+ *  - MediaFastForward/MediaRewind -> seek the active item's video/HLS player.
+ *    Step size scales with the video's own duration (roughly its length in
+ *    minutes, e.g. 30s on a 30-min video, 60s on a 60-min video), and
+ *    backward steps at a third of the forward step. Holding a key repeats
+ *    (stacks) the same step on an interval for as long as it's held.
+ *    `seekPreview` (the hook's return value) tracks the in-progress
+ *    direction + cumulative offset so the caller can render a preview
+ *    indicator over the video.
  *  - Horizontal touch swipe on the active card -> gallery paging
  * Vertical touch/scroll navigation is handled natively via CSS scroll-snap
  * on the container, so this hook does not duplicate that logic.
@@ -101,20 +108,40 @@ export function useFeedNavigation({
       }
     }
 
-    // Seeks the active video by `deltaSeconds` (negative = backward),
-    // clamped to the media's own bounds. Returns false (and does nothing)
-    // when there's no active video with a known, finite duration -- e.g.
-    // a photo, or a live/indefinite HLS stream -- so callers know not to
-    // bother showing seek feedback for a press that had no effect.
-    function applySeek(deltaSeconds: number): boolean {
+    // Locates the active <video>, or null if there isn't one with a known,
+    // finite duration to seek within -- e.g. a photo, or a live/indefinite
+    // HLS stream.
+    function getSeekableVideo(): HTMLVideoElement | null {
       const container = containerRef.current;
       const activeSection = container?.querySelector<HTMLElement>(
           `[data-index="${activeIndex}"]`,
       );
-      const video = activeSection?.querySelector('video');
-      if (!video || !video.duration || !Number.isFinite(video.duration)) return false;
-      video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + deltaSeconds));
-      return true;
+      const video = activeSection?.querySelector('video') ?? null;
+      if (!video || !video.duration || !Number.isFinite(video.duration)) return null;
+      return video;
+    }
+
+    // Step size scales with the video's own length -- see the constants'
+    // comment above for the intent.
+    function computeStepSeconds(video: HTMLVideoElement, direction: 'forward' | 'backward'): number {
+      const forwardStep = Math.min(
+          MAX_FORWARD_STEP_SECONDS,
+          Math.max(MIN_FORWARD_STEP_SECONDS, Math.round(video.duration / 60)),
+      );
+      if (direction === 'forward') return forwardStep;
+      return Math.max(MIN_BACKWARD_STEP_SECONDS, Math.round(forwardStep / 3));
+    }
+
+    // Seeks the active video one step in `direction`, clamped to the
+    // media's own bounds. Returns the step size actually applied (seconds,
+    // always positive), or null if there was nothing to seek.
+    function applySeekStep(direction: 'forward' | 'backward'): number | null {
+      const video = getSeekableVideo();
+      if (!video) return null;
+      const step = computeStepSeconds(video, direction);
+      const delta = direction === 'forward' ? step : -step;
+      video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + delta));
+      return step;
     }
 
     // Clears any pending hold timers/interval and marks nothing as held.
@@ -138,9 +165,6 @@ export function useFeedNavigation({
       // initial step -- ignore it, our own interval below handles repeats.
       if (heldSeekDirection.current === direction) return;
 
-      const step = direction === 'forward' ? FAST_FORWARD_STEP_SECONDS : REWIND_STEP_SECONDS;
-      const delta = direction === 'forward' ? step : -step;
-
       // A fresh press cancels any lingering fade-out from a previous tap
       // so the indicator can keep accumulating instead of resetting to 0.
       if (seekPreviewHideTimeout.current !== null) {
@@ -148,7 +172,8 @@ export function useFeedNavigation({
         seekPreviewHideTimeout.current = null;
       }
 
-      if (!applySeek(delta)) return; // nothing to seek (photo, live stream, ...)
+      const step = applySeekStep(direction);
+      if (step === null) return; // nothing to seek (photo, live stream, ...)
 
       heldSeekDirection.current = direction;
       setSeekPreview((prev) =>
@@ -157,15 +182,18 @@ export function useFeedNavigation({
               : { direction, totalSeconds: step },
       );
 
-      // Past the hold delay, keep applying the same step on an interval
-      // for as long as the key stays down -- this is the "stacking".
+      // Past the hold delay, keep applying a step on an interval for as
+      // long as the key stays down -- this is the "stacking". Each tick
+      // recomputes the step size (cheap, and stays correct even if e.g.
+      // the active item somehow changed mid-hold).
       seekHoldTimeout.current = setTimeout(() => {
         seekHoldInterval.current = setInterval(() => {
-          if (!applySeek(delta)) return;
+          const tickStep = applySeekStep(direction);
+          if (tickStep === null) return;
           setSeekPreview((prev) =>
               prev && prev.direction === direction
-                  ? { direction, totalSeconds: prev.totalSeconds + step }
-                  : { direction, totalSeconds: step },
+                  ? { direction, totalSeconds: prev.totalSeconds + tickStep }
+                  : { direction, totalSeconds: tickStep },
           );
         }, SEEK_REPEAT_INTERVAL_MS);
       }, SEEK_HOLD_DELAY_MS);
