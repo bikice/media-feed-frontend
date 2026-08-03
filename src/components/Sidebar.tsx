@@ -1,11 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LogOut, Search, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
+import {
+    Clapperboard,
+    Hash,
+    LogOut,
+    Search,
+    Sparkles,
+    User,
+    Users,
+    Volume2,
+    VolumeX,
+    X,
+    Zap,
+} from 'lucide-react';
 import type { FeedQuery, InstantSearchResponse, ProviderInfo } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSpatialNavigation } from '@/hooks/useSpatialNavigation';
 import { getInstantSearch } from '@/lib/api';
 import { stripTrailingSlash } from '@/lib/slug';
+
+/** Icon + tint per instant-search source `type`. Providers define `type`
+ *  freely, so this is intentionally a lookup with a fallback rather than an
+ *  exhaustive switch -- a new/unrecognized type (e.g. something the backend
+ *  adds before this list is updated) still renders sensibly. */
+const SOURCE_TYPE_META: Record<string, { icon: typeof Sparkles; className: string }> = {
+    subreddit: { icon: Users, className: 'text-(--color-purple-soft)' },
+    user: { icon: User, className: 'text-(--color-pink)' },
+    tag: { icon: Hash, className: 'text-(--color-text-dim)' },
+    niche: { icon: Sparkles, className: 'text-(--color-purple-soft)' },
+    action: { icon: Zap, className: 'text-(--color-pink)' },
+    studio: { icon: Clapperboard, className: 'text-(--color-purple-soft)' },
+    producer: { icon: Clapperboard, className: 'text-(--color-purple-soft)' },
+};
+const DEFAULT_SOURCE_TYPE_META = { icon: Sparkles, className: 'text-(--color-purple-soft)' };
 
 interface SidebarProps {
     isOpen: boolean;
@@ -142,12 +169,12 @@ export function Sidebar({
                     />
                 </div>
 
-                {suggestions &&
-                    ((suggestions.subreddits?.length ?? 0) > 0 ||
-                        (suggestions.users?.length ?? 0) > 0 ||
-                        (suggestions.categories?.length ?? 0) > 0) && (
-                        <div className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
-                            {suggestions.subreddits?.map((s) => (
+                {suggestions && suggestions.sources.length > 0 && (
+                    <div className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
+                        {suggestions.sources.map((s) => {
+                            const { icon: TypeIcon, className } =
+                            SOURCE_TYPE_META[s.type] ?? DEFAULT_SOURCE_TYPE_META;
+                            return (
                                 <button
                                     key={s.slug}
                                     onClick={() => {
@@ -156,38 +183,21 @@ export function Sidebar({
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
                                 >
-                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-purple-soft)" />
+                                    {s.icon ? (
+                                        <img
+                                            src={s.icon}
+                                            alt=""
+                                            className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                        />
+                                    ) : (
+                                        <TypeIcon className={`h-3.5 w-3.5 shrink-0 ${className}`} />
+                                    )}
                                     <span className="truncate">{s.name}</span>
                                 </button>
-                            ))}
-                            {suggestions.categories?.map((c) => (
-                                <button
-                                    key={c.slug}
-                                    onClick={() => {
-                                        onQueryChange({ ...query, source: stripTrailingSlash(c.slug), q: undefined });
-                                        setSearchText('');
-                                    }}
-                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
-                                >
-                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-purple-soft)" />
-                                    <span className="truncate">{c.name}</span>
-                                </button>
-                            ))}
-                            {suggestions.users?.map((u) => (
-                                <button
-                                    key={u.slug}
-                                    onClick={() => {
-                                        onQueryChange({ ...query, source: stripTrailingSlash(u.slug), q: undefined });
-                                        setSearchText('');
-                                    }}
-                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
-                                >
-                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-pink)" />
-                                    <span className="truncate">{u.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                            );
+                        })}
+                    </div>
+                )}
 
                 {query.source && (
                     <div className="mb-5 flex items-center justify-between rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2 text-sm">

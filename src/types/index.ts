@@ -76,14 +76,20 @@ export interface ProvidersResponse {
   providers: ProviderInfo[];
 }
 
+/** One entry in an instant-search response's merged `sources` list. `type`
+ *  is provider-defined (seen so far: "subreddit", "user", "niche", "tag")
+ *  and is purely a display hint -- every entry resolves to the feed's
+ *  `source` filter the same way regardless of type. */
+export interface InstantSearchSource {
+  slug: string;
+  name: string;
+  type: string;
+  icon: string | null;
+}
+
 export interface InstantSearchResponse {
   queries: string[];
-  /** Some providers omit this key entirely rather than sending `[]`. */
-  users?: { slug: string; name: string; profileIcon: string | null }[];
-  /** Reddit-style providers only. */
-  subreddits?: { slug: string; name: string; communityIcon: string | null }[];
-  /** Non-subreddit providers scope by category instead. */
-  categories?: { slug: string; name: string }[];
+  sources: InstantSearchSource[];
 }
 
 export interface AuthTokens {
