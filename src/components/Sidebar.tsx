@@ -151,7 +151,7 @@ export function Sidebar({
                                 <button
                                     key={s.slug}
                                     onClick={() => {
-                                        onQueryChange({ ...query, source: stripTrailingSlash(s.slug), q: undefined, flair: undefined });
+                                        onQueryChange({ ...query, source: stripTrailingSlash(s.slug), q: undefined });
                                         setSearchText('');
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
@@ -164,7 +164,7 @@ export function Sidebar({
                                 <button
                                     key={c.slug}
                                     onClick={() => {
-                                        onQueryChange({ ...query, source: stripTrailingSlash(c.slug), q: undefined, flair: undefined });
+                                        onQueryChange({ ...query, source: stripTrailingSlash(c.slug), q: undefined });
                                         setSearchText('');
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
@@ -177,7 +177,7 @@ export function Sidebar({
                                 <button
                                     key={u.slug}
                                     onClick={() => {
-                                        onQueryChange({ ...query, source: stripTrailingSlash(u.slug), q: undefined, flair: undefined });
+                                        onQueryChange({ ...query, source: stripTrailingSlash(u.slug), q: undefined });
                                         setSearchText('');
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
@@ -195,7 +195,7 @@ export function Sidebar({
               Source: <span className="text-(--color-text)">{query.source}</span>
             </span>
                         <button
-                            onClick={() => onQueryChange({ ...query, source: undefined, flair: undefined })}
+                            onClick={() => onQueryChange({ ...query, source: undefined })}
                             className="text-(--color-text-dim) hover:text-(--color-text)"
                             aria-label="Clear source"
                         >
