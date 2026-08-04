@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
         // Adjust VITE_API_PROXY_TARGET in .env to point at your MediaFeed backend.
         '/api': { target: proxyTarget, changeOrigin: true },
         '/hls-proxy': { target: proxyTarget, changeOrigin: true },
+        '/local-media': { target: proxyTarget, changeOrigin: true },
+        '/hls-auth': { target: proxyTarget, changeOrigin: true },
+        '/img-auth': { target: proxyTarget, changeOrigin: true },
       },
     },
     build: {
