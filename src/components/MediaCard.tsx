@@ -70,27 +70,6 @@ function MediaTypeBadge({ kind, isGallery }: { kind: MediaKind; isGallery: boole
     );
 }
 
-function GalleryDots({ count, index }: { count: number; index: number }) {
-    if (count <= 1) return null;
-    return (
-        <div className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-2">
-            <div className="glass rounded-full px-2.5 py-1 font-(family-name:--font-mono) text-[11px] text-(--color-text-dim)">
-                {index + 1} / {count}
-            </div>
-            <div className="flex gap-1">
-                {Array.from({ length: Math.min(count, 8) }).map((_, i) => (
-                    <span
-                        key={i}
-                        className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                            i === index ? 'bg-(--color-pink)' : 'bg-white/25'
-                        }`}
-                    />
-                ))}
-            </div>
-        </div>
-    );
-}
-
 function MediaSlot({
                        type,
                        url,
@@ -243,7 +222,6 @@ export function MediaCard({
 
             {gallery && (
                 <>
-                    <GalleryDots count={gallery.length} index={galleryIndex} />
                     {galleryIndex > 0 && (
                         <button
                             aria-label="Previous in gallery"

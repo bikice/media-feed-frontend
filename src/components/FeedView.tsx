@@ -4,6 +4,8 @@ import { loadFeedPreferences, saveFeedPreferences } from '@/lib/feedPreferences'
 import { useInfiniteFeed } from '@/hooks/useInfiniteFeed';
 import { useFeedNavigation } from '@/hooks/useFeedNavigation';
 import type { FeedQuery, ProviderInfo } from '@/types';
+import { GalleryDots } from './GalleryDots';
+import { LocationBadge } from './LocationBadge';
 import { MediaCard } from './MediaCard';
 import { OverlayNav } from './OverlayNav';
 import { Sidebar } from './Sidebar';
@@ -94,6 +96,7 @@ export function FeedView() {
     const activeItem = items[activeIndex];
     const activeGallery = activeItem?.gallery;
     const isGalleryActive = !!activeGallery && activeGallery.length > 1;
+    const activeProviderLabel = providers.find((p) => p.slug === provider)?.title ?? provider;
 
     const { seekPreview } = useFeedNavigation({
         containerRef,
@@ -178,6 +181,13 @@ export function FeedView() {
                     );
                 })}
             </div>
+
+            {chromeVisible && (
+                <div className="pointer-events-none fixed inset-x-0 top-4 z-20 flex flex-col items-center gap-2">
+                    <LocationBadge providerLabel={activeProviderLabel} sourceLabel={query.source ?? null} />
+                    {isGalleryActive && <GalleryDots count={activeGallery!.length} index={galleryIndex} />}
+                </div>
+            )}
 
             {chromeVisible && (
                 <OverlayNav onToggleSidebar={() => (sidebarOpen ? closeSidebar() : openSidebar())} />
