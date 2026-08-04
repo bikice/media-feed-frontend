@@ -19,7 +19,7 @@ export function FeedView() {
     const [provider, setProvider] = useState(initialPrefs?.provider ?? 'reddit');
     const [query, setQuery] = useState<FeedQuery>(initialPrefs?.query ?? {});
     const [muted, setMuted] = useState(true);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(initialPrefs?.sidebarOpen ?? false);
     const [chromeVisible, setChromeVisible] = useState(true);
     const [galleryIndex, setGalleryIndex] = useState(0);
 
@@ -39,8 +39,8 @@ export function FeedView() {
     }, []);
 
     useEffect(() => {
-        saveFeedPreferences({ provider, query });
-    }, [provider, query]);
+        saveFeedPreferences({ provider, query, sidebarOpen });
+    }, [provider, query, sidebarOpen]);
 
     const { items, activeIndex, setActiveIndex, windowIndices, isLoading, error, availableFlairs } =
         useInfiniteFeed({ provider, query });

@@ -5,6 +5,7 @@ const PREFS_KEY = 'mediafeed.feedPrefs';
 export interface FeedPreferences {
     provider: string;
     query: FeedQuery;
+    sidebarOpen?: boolean;
 }
 
 /** Load the last-used provider + query filters, if any were saved. */
@@ -17,6 +18,7 @@ export function loadFeedPreferences(): FeedPreferences | null {
         return {
             provider: parsed.provider,
             query: parsed.query && typeof parsed.query === 'object' ? parsed.query : {},
+            sidebarOpen: typeof parsed.sidebarOpen === 'boolean' ? parsed.sidebarOpen : false,
         };
     } catch {
         return null;
