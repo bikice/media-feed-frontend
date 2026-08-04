@@ -30,8 +30,8 @@ function normalizeGalleryItem(raw: unknown): GalleryItem | null {
 function normalizeMediaItem(item: MediaItem): MediaItem {
   if (!item.gallery) return item;
   const gallery = item.gallery
-    .map(normalizeGalleryItem)
-    .filter((g): g is GalleryItem => g !== null);
+      .map(normalizeGalleryItem)
+      .filter((g): g is GalleryItem => g !== null);
   return { ...item, gallery: gallery.length > 0 ? gallery : null };
 }
 
@@ -56,7 +56,7 @@ export async function logout(refreshToken: string): Promise<void> {
 
 export async function getProviders(): Promise<ProviderInfo[]> {
   const data = await apiFetch<
-    { 'hydra:member'?: ProviderInfo[] } | { providers?: ProviderInfo[] } | ProviderInfo[]
+      { 'hydra:member'?: ProviderInfo[] } | { providers?: ProviderInfo[] } | ProviderInfo[]
   >('/api/providers');
   if (Array.isArray(data)) return data;
   if ('hydra:member' in data && data['hydra:member']) return data['hydra:member'];
@@ -67,8 +67,8 @@ export async function getProviders(): Promise<ProviderInfo[]> {
 // ---- Feed -------------------------------------------------------------------
 
 export async function getFeed(
-  provider: string,
-  query: FeedQuery & { before?: string; after?: string; page?: number } = {},
+    provider: string,
+    query: FeedQuery & { before?: string; after?: string; page?: number } = {},
 ): Promise<FeedResponse> {
   const qs = toQueryString({
     q: query.q,
@@ -81,19 +81,31 @@ export async function getFeed(
     page: query.page,
   });
   return apiFetch<FeedResponse>(`/api/providers/${encodeURIComponent(provider)}/feed${qs}`).then(
-    (res) => ({ ...res, items: res.items.map(normalizeMediaItem) }),
+      (res) => ({ ...res, items: res.items.map(normalizeMediaItem) }),
   );
+}
+
+/**
+ * Some providers (pornhub) can't put a direct playable URL in the feed
+ * listing itself -- list items come back with `mediaUrl: null` and only a
+ * poster, and the real (signed, short-lived) URL has to be fetched
+ * per-item from this endpoint. Called lazily, per item, by
+ * useInfiniteFeed's resolution effect.
+ */
+export async function getMediaDetail(provider: string, id: string): Promise<MediaItem> {
+  const item = await apiFetch<MediaItem>(
+      `/api/providers/${encodeURIComponent(provider)}/media/${encodeURIComponent(id)}`,
+  );
+  return normalizeMediaItem(item);
 }
 
 export async function getInstantSearch(
-  provider: string,
-  q: string,
-  source?: string,
+    provider: string,
+    q: string,
+    source?: string,
 ): Promise<InstantSearchResponse> {
   const qs = toQueryString({ q, source });
   return apiFetch<InstantSearchResponse>(
-    `/api/providers/${encodeURIComponent(provider)}/search/instant${qs}`,
+      `/api/providers/${encodeURIComponent(provider)}/search/instant${qs}`,
   );
 }
-
-

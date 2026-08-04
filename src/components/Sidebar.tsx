@@ -169,6 +169,24 @@ export function Sidebar({
                     />
                 </div>
 
+                {suggestions && suggestions.queries.length > 0 && (
+                    <div className="scrollbar-visible mb-2 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
+                        {suggestions.queries.map((q) => (
+                            <button
+                                key={q}
+                                onClick={() => {
+                                    setSearchText(q);
+                                    onQueryChange({ ...query, q, source: undefined, flair: undefined });
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
+                            >
+                                <Search className="h-3.5 w-3.5 shrink-0 text-(--color-text-dim)" />
+                                <span className="truncate">{q}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {suggestions && suggestions.sources.length > 0 && (
                     <div className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
                         {suggestions.sources.map((s) => {

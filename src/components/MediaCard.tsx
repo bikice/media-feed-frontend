@@ -226,6 +226,15 @@ export function MediaCard({
                 )
             )}
 
+            {/* No gallery and no top-level mediaUrl yet: this provider needs a
+                per-item lookup to resolve the real media URL (see
+                useInfiniteFeed), which is still in flight. Only show the
+                spinner for the active card -- off-window neighbors resolve
+                silently in the background. */}
+            {!gallery && !activeSlide && isActive && (
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-(--color-purple) border-t-transparent" />
+            )}
+
             {chromeVisible && activeKind && (
                 <MediaTypeBadge kind={activeKind} isGallery={!!gallery && gallery.length > 1} />
             )}
