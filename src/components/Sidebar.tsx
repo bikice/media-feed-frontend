@@ -242,10 +242,7 @@ export function Sidebar({
                     {providers.map((p) => (
                         <button
                             key={p.slug}
-                            onClick={() => {
-                                onProviderChange(p.slug);
-                                searchInputRef.current?.focus();
-                            }}
+                            onClick={() => onProviderChange(p.slug)}
                             className={`rounded-full border px-3 py-1.5 text-sm transition ${
                                 p.slug === provider
                                     ? 'border-transparent bg-gradient-to-r from-(--color-purple) to-(--color-pink) text-white'
