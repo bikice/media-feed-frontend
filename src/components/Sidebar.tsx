@@ -65,28 +65,6 @@ export function Sidebar({
     const debouncedSearch = useDebouncedValue(searchText, 350);
     const [suggestions, setSuggestions] = useState<InstantSearchResponse | null>(null);
 
-    // D-pad focus landing on the search input (sidebar open, spatial nav,
-    // etc.) should not pop the on-screen keyboard on Fire TV/Android --
-    // only an explicit tap/click or Enter/Space press should. inputMode
-    // "none" lets the input still receive and show focus normally while
-    // suppressing the virtual keyboard; flipping it to "text" on explicit
-    // activation (and re-focusing to make that take effect immediately)
-    // is what actually invites the keyboard in.
-    const [searchEditable, setSearchEditable] = useState(false);
-    const suppressSearchBlurRef = useRef(false);
-    const activateSearchInput = useCallback(() => {
-        if (searchEditable) return;
-        setSearchEditable(true);
-        const el = searchInputRef.current;
-        if (!el) return;
-        suppressSearchBlurRef.current = true;
-        el.blur();
-        requestAnimationFrame(() => {
-            el.focus();
-            suppressSearchBlurRef.current = false;
-        });
-    }, [searchEditable]);
-
     // The "Related searches" and "Sources" suggestion lists collapse down
     // to a single trigger row (so they behave like the search input in
     // spatial nav -- a single focusable stop, no wasted vertical space)
@@ -281,15 +259,6 @@ export function Sidebar({
                         ref={searchInputRef}
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
-                        onClick={activateSearchInput}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') activateSearchInput();
-                        }}
-                        onBlur={() => {
-                            if (suppressSearchBlurRef.current) return;
-                            setSearchEditable(false);
-                        }}
-                        inputMode={searchEditable ? 'text' : 'none'}
                         placeholder="Search this provider…"
                         className="w-full rounded-lg border border-(--color-border) bg-(--color-surface-2) py-2.5 pl-9 pr-3 text-sm outline-none focus:border-(--color-pink)"
                     />
