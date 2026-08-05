@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     style="shape-rendering:geometricPrecision;text-rendering:geometricPrecision;image-rendering:optimizeQuality;fill-rule:evenodd;clip-rule:evenodd"
+     viewBox="0 0 650 650">
+    <style>@media (prefers-color-scheme:dark){.black{fill:#fe4c8c}.pink{fill:#000}}</style>
+    <circle cx="325" cy="325" r="325" class="black"/>
+    <circle cx="325" cy="325" r="260" fill="#fe4d8c" class="pink"/>
+    <circle cx="325" cy="325" r="215" class="black"/>
+    <circle cx="515" cy="175" r="115" class="black"/>
+    <path fill="#fe4d8c"
+          d="M450 200v-40h40v-50h40v50h45v40h-45v50h-40v-50zM240.5 227.5h44v190h-53c.167-41.001 0-82.001-.5-123-15.832 11.793-33.924 21.294-53.092 26.835 0-13.83.092-29.925.092-43.338 15.043-4.937 28.876-12.601 41.5-21.997 9.172-7.99 16.172-17.49 21-28.5z"
+          class="pink"/>
+    <ellipse cx="395" cy="277" fill="#fe4d8c" class="pink" rx="72" ry="53"/>
+    <ellipse cx="395" cy="365" fill="#fe4d8c" class="pink" rx="78" ry="60"/>
+    <circle cx="395" cy="280" r="25" class="black"/>
+    <ellipse cx="395" cy="360" class="black" rx="25" ry="30"/>
+</svg>

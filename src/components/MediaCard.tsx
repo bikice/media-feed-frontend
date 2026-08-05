@@ -78,6 +78,7 @@ function MediaSlot({
                        isActive,
                        shouldMount,
                        globalMuted,
+                       eager,
                    }: {
     type: string;
     url: string;
@@ -86,6 +87,7 @@ function MediaSlot({
     isActive: boolean;
     shouldMount: boolean;
     globalMuted: boolean;
+    eager?: boolean;
 }) {
     const kind = resolveMediaKind(type, url);
     const isVideoLike = kind === 'video' || kind === 'hls';
@@ -135,7 +137,7 @@ function MediaSlot({
         );
     }
 
-    return <img src={url} alt={alt} className="h-full w-full object-contain" loading="lazy" />;
+    return <img src={url} alt={alt} className="h-full w-full object-contain" loading={eager ? 'eager' : 'lazy'} />;
 }
 
 export function MediaCard({
@@ -171,9 +173,11 @@ export function MediaCard({
                     >
                         {gallery.map((slide, i) => {
                             const nearActive = Math.abs(i - galleryIndex) <= 1;
+                            const slideKind = resolveMediaKind(slide.type, slide.mediaUrl);
+                            const isVideoLike = slideKind === 'video' || slideKind === 'hls';
                             return (
                                 <div key={i} className="h-full shrink-0" style={{ width: `${100 / gallery.length}%` }}>
-                                    {nearActive ? (
+                                    {nearActive || !isVideoLike ? (
                                         <MediaSlot
                                             type={slide.type}
                                             url={slide.mediaUrl}
@@ -182,6 +186,7 @@ export function MediaCard({
                                             isActive={isActive && i === galleryIndex}
                                             shouldMount={shouldMount && i === galleryIndex}
                                             globalMuted={globalMuted}
+                                            eager={!isVideoLike}
                                         />
                                     ) : (
                                         <div className="h-full w-full bg-black" />
