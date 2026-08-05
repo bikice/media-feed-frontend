@@ -84,6 +84,7 @@ export function Sidebar({
     const orderListRef = useRef<HTMLDivElement>(null);
     const flairListRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const clearSourceRef = useRef<HTMLButtonElement>(null);
     const asideRef = useRef<HTMLElement>(null);
 
     const activeProviderInfo = providers.find((p) => p.slug === provider);
@@ -128,10 +129,18 @@ export function Sidebar({
     useLayoutEffect(() => {
         if (!isOpen) return;
         if (asideRef.current && !asideRef.current.contains(document.activeElement)) {
-            searchInputRef.current?.focus();
+            // If a source is active, its chip (with the clear/X button) is
+            // what's on screen where the search input used to be conceptually
+            // "next" -- land there instead of the search input so a source
+            // selection doesn't visually bounce focus back up to search.
+            if (query.source) {
+                clearSourceRef.current?.focus();
+            } else {
+                searchInputRef.current?.focus();
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [suggestions, orderParam, availableFlairs]);
+    }, [suggestions, orderParam, availableFlairs, query.source]);
 
     // D-pad navigation for Fire TV etc.: while the sidebar is open, arrow
     // keys move focus between its buttons/input by on-screen position.
@@ -274,7 +283,7 @@ export function Sidebar({
                                         setSearchText(q);
                                         onQueryChange({ ...query, q, source: undefined, flair: undefined });
                                         setQueriesOpen(false);
-                                        requestAnimationFrame(() => searchInputRef.current?.focus());
+                                        requestAnimationFrame(() => queryTriggerRef.current?.focus());
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
                                 >
@@ -309,7 +318,12 @@ export function Sidebar({
                                             onQueryChange({ ...query, source: stripTrailingSlash(s.slug), q: undefined });
                                             setSearchText('');
                                             setSourcesOpen(false);
-                                            requestAnimationFrame(() => sourceTriggerRef.current?.focus());
+                                            // Selecting a source immediately reveals the "Source: …"
+                                            // chip with its own clear (X) button below -- land focus
+                                            // there rather than on the trigger, which is about to
+                                            // unmount anyway once the cleared search text's debounce
+                                            // settles and `suggestions` nulls out.
+                                            requestAnimationFrame(() => clearSourceRef.current?.focus());
                                         }}
                                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
                                     >
@@ -346,6 +360,7 @@ export function Sidebar({
               Source: <span className="text-(--color-text)">{query.source}</span>
             </span>
                         <button
+                            ref={clearSourceRef}
                             onClick={() => {
                                 searchInputRef.current?.focus();
                                 onQueryChange({ ...query, source: undefined });
