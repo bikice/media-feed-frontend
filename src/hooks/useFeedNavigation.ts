@@ -64,6 +64,11 @@ const SEEK_PREVIEW_LINGER_MS = 800;
  *    minutes, e.g. 30s on a 30-min video, 60s on a 60-min video), and
  *    backward steps at a third of the forward step. Holding a key repeats
  *    (stacks) the same step on an interval for as long as it's held.
+ *    A fresh press (e.g. a second tap) that lands while the previous press's
+ *    preview is still lingering, in the same direction, is treated as a
+ *    "double/triple press" -- instead of the base step, it applies 3x the
+ *    previous press's step (10s -> 30s -> 90s, ...), resetting back to the
+ *    base step once the preview fully fades.
  *    `seekPreview` (the hook's return value) tracks the in-progress
  *    direction + cumulative offset so the caller can render a preview
  *    indicator over the video.
@@ -93,6 +98,11 @@ export function useFeedNavigation({
   const seekHoldTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seekHoldInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const seekPreviewHideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The step size (seconds) actually applied by the most recent press, so a
+  // rapid repeat press in the same direction can triple it (10s -> 30s ->
+  // 90s, ...) instead of just reapplying the base step. Cleared once the
+  // preview finishes lingering -- see handleSeekPress/the hide timeout below.
+  const lastSeekStep = useRef<{ direction: 'forward' | 'backward'; step: number } | null>(null);
 
   useEffect(() => {
     // Shared by the MediaPlayPause and Space key handlers below.
@@ -134,11 +144,13 @@ export function useFeedNavigation({
 
     // Seeks the active video one step in `direction`, clamped to the
     // media's own bounds. Returns the step size actually applied (seconds,
-    // always positive), or null if there was nothing to seek.
-    function applySeekStep(direction: 'forward' | 'backward'): number | null {
+    // always positive), or null if there was nothing to seek. `overrideStep`
+    // lets a rapid repeat press use a tripled step instead of the base one
+    // computed from the video's duration -- see handleSeekPress.
+    function applySeekStep(direction: 'forward' | 'backward', overrideStep?: number): number | null {
       const video = getSeekableVideo();
       if (!video) return null;
-      const step = computeStepSeconds(video, direction);
+      const step = overrideStep ?? computeStepSeconds(video, direction);
       const delta = direction === 'forward' ? step : -step;
       video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + delta));
       return step;
@@ -165,6 +177,17 @@ export function useFeedNavigation({
       // initial step -- ignore it, our own interval below handles repeats.
       if (heldSeekDirection.current === direction) return;
 
+      // A press landing while the previous one's preview is still lingering
+      // (i.e. we haven't yet reset for a fresh single tap) counts as a
+      // "double/triple press" -- triple the previous step instead of
+      // recomputing the base one. Once the linger timeout has actually
+      // fired (or this is the first press ever), lastSeekStep is cleared and
+      // we fall back to the base step.
+      const isRepeatPress =
+          seekPreviewHideTimeout.current !== null &&
+          lastSeekStep.current !== null &&
+          lastSeekStep.current.direction === direction;
+
       // A fresh press cancels any lingering fade-out from a previous tap
       // so the indicator can keep accumulating instead of resetting to 0.
       if (seekPreviewHideTimeout.current !== null) {
@@ -172,9 +195,11 @@ export function useFeedNavigation({
         seekPreviewHideTimeout.current = null;
       }
 
-      const step = applySeekStep(direction);
+      const overrideStep = isRepeatPress ? lastSeekStep.current!.step * 3 : undefined;
+      const step = applySeekStep(direction, overrideStep);
       if (step === null) return; // nothing to seek (photo, live stream, ...)
 
+      lastSeekStep.current = { direction, step };
       heldSeekDirection.current = direction;
       setSeekPreview((prev) =>
           prev && prev.direction === direction
@@ -190,6 +215,7 @@ export function useFeedNavigation({
         seekHoldInterval.current = setInterval(() => {
           const tickStep = applySeekStep(direction);
           if (tickStep === null) return;
+          lastSeekStep.current = { direction, step: tickStep };
           setSeekPreview((prev) =>
               prev && prev.direction === direction
                   ? { direction, totalSeconds: prev.totalSeconds + tickStep }
@@ -207,6 +233,7 @@ export function useFeedNavigation({
       seekPreviewHideTimeout.current = setTimeout(() => {
         setSeekPreview(null);
         seekPreviewHideTimeout.current = null;
+        lastSeekStep.current = null;
       }, SEEK_PREVIEW_LINGER_MS);
     }
 
@@ -304,6 +331,7 @@ export function useFeedNavigation({
         clearTimeout(seekPreviewHideTimeout.current);
         seekPreviewHideTimeout.current = null;
       }
+      lastSeekStep.current = null;
       setSeekPreview(null);
     };
   }, [
