@@ -115,9 +115,23 @@ export function useSpatialNavigation(
             const current = document.activeElement as HTMLElement | null;
             if (!current || !container.contains(current)) return;
 
-            // Let left/right move the text cursor normally inside an input;
-            // only up/down bounce focus out of it into the rest of the panel.
-            if (current.tagName === 'INPUT' && (direction === 'left' || direction === 'right')) return;
+            // Let left/right move the text cursor normally inside an input --
+            // but only while there's actually somewhere for the caret to go.
+            // Once it's already at that edge of the text (e.g. position 0,
+            // which is where an empty/untouched search box starts), there's
+            // nothing left for the browser to do with the key, so let it
+            // fall through to spatial nav instead of being silently
+            // swallowed forever. This is what lets ArrowLeft at the very
+            // start of the search input reach `onEdge` below and close the
+            // panel, the same as it would from any other leftmost element.
+            if (current.tagName === 'INPUT' && (direction === 'left' || direction === 'right')) {
+                const input = current as HTMLInputElement;
+                const atStart = input.selectionStart === 0 && input.selectionEnd === 0;
+                const atEnd =
+                    input.selectionStart === input.value.length &&
+                    input.selectionEnd === input.value.length;
+                if ((direction === 'left' && !atStart) || (direction === 'right' && !atEnd)) return;
+            }
 
             const rows = buildRows(container);
             const pos = locate(rows, current);

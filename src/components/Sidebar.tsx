@@ -167,7 +167,15 @@ export function Sidebar({
     // runs afterward in the same commit and wins.
     useEffect(() => {
         if (!isOpen) return;
-        searchInputRef.current?.focus();
+        const input = searchInputRef.current;
+        input?.focus();
+        // Focusing an <input> with existing text otherwise leaves the browser's
+        // default caret placement (end of the text) in place. Pin it to the
+        // start instead -- both so reopening with a prior search reads
+        // naturally, and so ArrowLeft can immediately close the panel (see
+        // useSpatialNavigation's caret-at-edge fallthrough) rather than first
+        // requiring a press to walk the caret back to position 0.
+        input?.setSelectionRange(0, 0);
     }, [isOpen]);
 
     useEffect(() => {
