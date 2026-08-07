@@ -80,6 +80,9 @@
     background-color: var(--color-purple-soft);
     border-radius: 9999px;
   }
+  .safe-top {
+    top: max(1rem, env(safe-area-inset-top));
+  }
 }
 
 @keyframes pulse-ring {

@@ -62,7 +62,7 @@ const MEDIA_KIND_META: Record<MediaKind, { icon: typeof ImageIcon; label: string
 function MediaTypeBadge({ kind, isGallery }: { kind: MediaKind; isGallery: boolean }) {
     const { icon: Icon, label } = MEDIA_KIND_META[kind];
     return (
-        <div className="glass absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-(--color-text-dim)">
+        <div className="glass absolute left-4 safe-top z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-(--color-text-dim)">
             {isGallery && <Images className="h-3.5 w-3.5 text-(--color-purple-soft)" />}
             <Icon className="h-3.5 w-3.5" />
             <span>{label}</span>

@@ -1,4 +1,4 @@
-import { apiFetch, toQueryString } from './http';
+import { apiFetch, toQueryString, withBase } from './http';
 import type { FeedQuery, FeedResponse, GalleryItem, InstantSearchResponse, MediaItem, ProviderInfo } from '@/types';
 
 function inferTypeFromUrl(url: string): string {
@@ -11,7 +11,7 @@ function inferTypeFromUrl(url: string): string {
  *  backend that sends bare URL strings instead of {type, mediaUrl, ...}. */
 function normalizeGalleryItem(raw: unknown): GalleryItem | null {
   if (typeof raw === 'string') {
-    return { type: inferTypeFromUrl(raw), mediaUrl: raw, posterUrl: null };
+    return { type: inferTypeFromUrl(raw), mediaUrl: withBase(raw), posterUrl: null };
   }
   if (raw && typeof raw === 'object') {
     const obj = raw as Record<string, unknown>;
@@ -19,8 +19,8 @@ function normalizeGalleryItem(raw: unknown): GalleryItem | null {
     if (typeof mediaUrl !== 'string') return null;
     return {
       type: typeof obj.type === 'string' ? obj.type : inferTypeFromUrl(mediaUrl),
-      mediaUrl,
-      posterUrl: typeof obj.posterUrl === 'string' ? obj.posterUrl : null,
+      mediaUrl: withBase(mediaUrl),
+      posterUrl: typeof obj.posterUrl === 'string' ? withBase(obj.posterUrl) : null,
       caption: typeof obj.caption === 'string' ? obj.caption : null,
     };
   }
@@ -28,11 +28,16 @@ function normalizeGalleryItem(raw: unknown): GalleryItem | null {
 }
 
 function normalizeMediaItem(item: MediaItem): MediaItem {
-  if (!item.gallery) return item;
-  const gallery = item.gallery
+  const resolved: MediaItem = {
+    ...item,
+    mediaUrl: item.mediaUrl ? withBase(item.mediaUrl) : item.mediaUrl,
+    posterUrl: item.posterUrl ? withBase(item.posterUrl) : item.posterUrl,
+  };
+  if (!resolved.gallery) return resolved;
+  const gallery = resolved.gallery
       .map(normalizeGalleryItem)
       .filter((g): g is GalleryItem => g !== null);
-  return { ...item, gallery: gallery.length > 0 ? gallery : null };
+  return { ...resolved, gallery: gallery.length > 0 ? gallery : null };
 }
 
 // ---- Auth -----------------------------------------------------------------
@@ -56,12 +61,14 @@ export async function logout(refreshToken: string): Promise<void> {
 
 export async function getProviders(): Promise<ProviderInfo[]> {
   const data = await apiFetch<
-      { 'hydra:member'?: ProviderInfo[] } | { providers?: ProviderInfo[] } | ProviderInfo[]
+  { 'hydra:member'?: ProviderInfo[] } | { providers?: ProviderInfo[] } | ProviderInfo[]
   >('/api/providers');
-  if (Array.isArray(data)) return data;
-  if ('hydra:member' in data && data['hydra:member']) return data['hydra:member'];
-  if ('providers' in data && data.providers) return data.providers;
-  return [];
+  const list = Array.isArray(data)
+      ? data
+      : (('hydra:member' in data && data['hydra:member']) || ('providers' in data && data.providers) || []) as ProviderInfo[];
+  // Provider icons/logos are also plausibly relative URLs -- adjust the
+  // field name(s) here if ProviderInfo carries an icon/logo/avatar url.
+  return list;
 }
 
 // ---- Feed -------------------------------------------------------------------
@@ -85,13 +92,6 @@ export async function getFeed(
   );
 }
 
-/**
- * Some providers (pornhub) can't put a direct playable URL in the feed
- * listing itself -- list items come back with `mediaUrl: null` and only a
- * poster, and the real (signed, short-lived) URL has to be fetched
- * per-item from this endpoint. Called lazily, per item, by
- * useInfiniteFeed's resolution effect.
- */
 export async function getMediaDetail(provider: string, id: string): Promise<MediaItem> {
   const item = await apiFetch<MediaItem>(
       `/api/providers/${encodeURIComponent(provider)}/media/${encodeURIComponent(id)}`,

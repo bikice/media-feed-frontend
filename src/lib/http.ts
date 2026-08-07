@@ -1,5 +1,29 @@
 import { loadTokens, saveTokens, clearTokens } from './tokenStorage';
 
+/**
+ * In the browser (dev server / same-origin web deploy) this is '' and every
+ * request stays relative, so Vite's proxy (or the same-origin server) still
+ * handles it exactly as before.
+ *
+ * In the Capacitor app there is no "same domain" -- the webview loads from
+ * a local origin (https://localhost on Android by default), so relative
+ * paths like '/api/...' resolve against nothing. VITE_API_BASE_URL must be
+ * set at build time to the real backend, e.g. https://api.example.com,
+ * and every request below gets that prefix.
+ */
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+// Exported so api.ts (and anything else that gets a relative URL back from
+// the API -- mediaUrl, posterUrl, gallery entries, etc) can resolve it the
+// same way apiFetch resolves request paths. Without this, <img>/<video> src
+// values built straight from API responses stay relative and resolve
+// against the Capacitor webview's local origin instead of the real backend.
+export function withBase(path: string): string {
+  // Absolute URLs (e.g. already-prefixed) pass through untouched.
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE_URL}${path}`;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -31,9 +55,6 @@ let refreshInFlight: Promise<string | null> | null = null;
 async function refreshAccessToken(): Promise<string | null> {
   const { refreshToken } = loadTokens();
   if (!refreshToken) {
-    // No refresh token to fall back on -- this session can't be renewed, so
-    // tear it down properly instead of leaving the caller to fail silently
-    // on every subsequent request while the app still thinks it's logged in.
     notifySessionExpired();
     return null;
   }
@@ -41,7 +62,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const res = await fetch('/api/token/refresh', {
+        const res = await fetch(withBase('/api/token/refresh'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refresh_token: refreshToken }),
@@ -65,9 +86,7 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 interface RequestOptions extends RequestInit {
-  /** Skip attaching the Authorization header (e.g. for /api/login_check). */
   skipAuth?: boolean;
-  /** Skip the 401 -> refresh -> retry dance (used by the refresh call itself). */
   skipRefreshRetry?: boolean;
 }
 
@@ -84,7 +103,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       const { token } = loadTokens();
       if (token) finalHeaders.set('Authorization', `Bearer ${token}`);
     }
-    return fetch(path, { ...rest, headers: finalHeaders });
+    return fetch(withBase(path), { ...rest, headers: finalHeaders });
   };
 
   let res = await doFetch();
@@ -94,9 +113,6 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     if (newToken) {
       res = await doFetch();
       if (res.status === 401) {
-        // The freshly refreshed token was rejected too -- the session itself
-        // is invalid (not just the access token), so tear it down rather
-        // than letting the caller retry forever.
         notifySessionExpired();
       }
     }

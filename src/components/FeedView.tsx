@@ -183,7 +183,7 @@ export function FeedView() {
             </div>
 
             {chromeVisible && (
-                <div className="pointer-events-none fixed inset-x-0 top-4 z-20 flex flex-col items-center gap-2">
+                <div className="pointer-events-none fixed inset-x-0 safe-top z-20 flex flex-col items-center gap-2">
                     <LocationBadge providerLabel={activeProviderLabel} sourceLabel={query.source ?? null} />
                     {isGalleryActive && <GalleryDots count={activeGallery!.length} index={galleryIndex} />}
                 </div>

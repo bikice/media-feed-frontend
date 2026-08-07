@@ -6,7 +6,7 @@ interface OverlayNavProps {
 
 export function OverlayNav({ onToggleSidebar }: OverlayNavProps) {
   return (
-      <div className="fixed right-4 top-4 z-20 flex flex-col items-end gap-3">
+      <div className="fixed right-4 safe-top z-20 flex flex-col items-end gap-3">
         <div className="glass flex flex-col gap-1 rounded-2xl p-1.5">
           <button
               onClick={onToggleSidebar}
