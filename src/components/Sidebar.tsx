@@ -278,6 +278,31 @@ export function Sidebar({
                     />
                 </div>
 
+                {/* Provider-curated example searches -- only meaningful as a
+                    starting point, so hide them the moment the user has
+                    typed a search or picked a source of their own. */}
+                {!query.q && !query.source && (activeProviderInfo?.defaultQueries.length ?? 0) > 0 && (
+                    <div className="mb-5">
+                        <label className="mb-1.5 block text-xs font-medium text-(--color-text-dim)">
+                            Suggested searches
+                        </label>
+                        <div className="flex flex-wrap gap-2" data-tv-row>
+                            {activeProviderInfo!.defaultQueries.map((q) => (
+                                <button
+                                    key={q}
+                                    onClick={() => {
+                                        setSearchText(q);
+                                        onQueryChange({ ...query, q, source: undefined, flair: undefined });
+                                    }}
+                                    className="rounded-full border border-(--color-border) bg-(--color-surface-2) px-3 py-1.5 text-sm text-(--color-text-dim) transition hover:text-(--color-text)"
+                                >
+                                    {q}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {suggestions && suggestions.queries.length > 0 && (
                     queriesOpen ? (
                         <div ref={queryListRef} className="scrollbar-visible mb-2 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">

@@ -70,6 +70,9 @@ export interface ProviderInfo {
   slug: string;
   title: string;
   feedParams: FeedParamSpec[];
+  /** Provider-curated example searches, meant to be offered as quick-pick
+   *  suggestions before the user has typed or picked a source of their own. */
+  defaultQueries: string[];
 }
 
 export interface ProvidersResponse {
