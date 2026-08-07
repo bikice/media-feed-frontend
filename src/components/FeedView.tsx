@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getProviders } from '@/lib/api';
 import { loadFeedPreferences, saveFeedPreferences } from '@/lib/feedPreferences';
+import { useFeedUrlState } from '@/hooks/useFeedUrlState';
 import { useInfiniteFeed } from '@/hooks/useInfiniteFeed';
 import { useFeedNavigation } from '@/hooks/useFeedNavigation';
-import type { FeedQuery, ProviderInfo } from '@/types';
+import type { ProviderInfo } from '@/types';
 import { GalleryDots } from './GalleryDots';
 import { LocationBadge } from './LocationBadge';
 import { MediaCard } from './MediaCard';
 import { OverlayNav } from './OverlayNav';
 import { Sidebar } from './Sidebar';
 
-// Read once at module init time so the very first render already reflects
-// whatever was saved on a previous visit (avoids a flash of the defaults).
+// Read once at module init time purely for `sidebarOpen` -- provider/query
+// now come from useFeedUrlState, which does its own (URL-aware) read of
+// the same storage. Kept separate so the very first render already
+// reflects whatever sidebar state was saved, without waiting on an effect.
 const initialPrefs = loadFeedPreferences();
 
 export function FeedView() {
     const [providers, setProviders] = useState<ProviderInfo[]>([]);
-    const [provider, setProvider] = useState(initialPrefs?.provider ?? 'reddit');
-    const [query, setQuery] = useState<FeedQuery>(initialPrefs?.query ?? {});
+    const { provider, query, setProvider, setQuery } = useFeedUrlState();
     const [muted, setMuted] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(initialPrefs?.sidebarOpen ?? false);
     const [chromeVisible, setChromeVisible] = useState(true);
