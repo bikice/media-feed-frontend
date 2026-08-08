@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getProviders } from '@/lib/api';
+import { getProviders, trackView } from '@/lib/api';
 import { loadFeedPreferences, saveFeedPreferences } from '@/lib/feedPreferences';
 import { useFeedUrlState } from '@/hooks/useFeedUrlState';
 import { useInfiniteFeed } from '@/hooks/useInfiniteFeed';
@@ -17,7 +17,11 @@ import { Sidebar } from './Sidebar';
 // reflects whatever sidebar state was saved, without waiting on an effect.
 const initialPrefs = loadFeedPreferences();
 
-export function FeedView() {
+interface FeedViewProps {
+    onOpenAdminTracking?: () => void;
+}
+
+export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
     const [providers, setProviders] = useState<ProviderInfo[]>([]);
     const { provider, query, setProvider, setQuery } = useFeedUrlState();
     const [muted, setMuted] = useState(true);
@@ -58,6 +62,24 @@ export function FeedView() {
     useEffect(() => {
         setGalleryIndex(0);
     }, [activeIndex]);
+
+    // Fire-and-forget view tracking once per unique active item.
+    const lastTrackedIndex = useRef<number>(-1);
+
+    // Reset tracking ref when the feed scope changes so the first item of
+    // the new feed is always tracked.
+    useEffect(() => {
+        lastTrackedIndex.current = -1;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [provider, query.source, query.flair, query.order, query.q]);
+    useEffect(() => {
+        if (activeIndex === lastTrackedIndex.current) return;
+        const item = items[activeIndex];
+        if (!item) return;
+        lastTrackedIndex.current = activeIndex;
+        trackView(item.provider, item.id, query).catch(() => {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeIndex, items, query.q, query.source, query.flair, query.order]);
 
     // Track which item is centered in the viewport.
     useEffect(() => {
@@ -212,6 +234,7 @@ export function FeedView() {
                 availableFlairs={availableFlairs}
                 muted={muted}
                 onToggleMute={() => setMuted((v) => !v)}
+                onOpenAdminTracking={onOpenAdminTracking}
             />
         </div>
     );

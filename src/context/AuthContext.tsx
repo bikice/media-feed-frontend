@@ -8,6 +8,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isInitializing: boolean;
   username: string | null;
+  isAdmin: boolean;
   error: string | null;
   isSubmitting: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -23,6 +24,16 @@ function usernameFromJwt(token: string): string | null {
     return payload.username ?? null;
   } catch {
     return null;
+  }
+}
+
+function rolesFromJwt(token: string): string[] {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const roles = payload.roles ?? payload.role ?? [];
+    return Array.isArray(roles) ? roles : [roles];
+  } catch {
+    return [];
   }
 }
 
@@ -77,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!token,
       isInitializing,
       username: token ? usernameFromJwt(token) : null,
+      isAdmin: token ? rolesFromJwt(token).includes('ROLE_ADMIN') : false,
       error,
       isSubmitting,
       login: doLogin,
