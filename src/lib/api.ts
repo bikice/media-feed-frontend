@@ -103,12 +103,14 @@ export async function trackView(
     provider: string,
     id: string,
     query: Pick<FeedQuery, 'q' | 'source' | 'flair' | 'order'>,
+    galleryIndex?: number,
 ): Promise<void> {
   const body: Record<string, string> = {};
   if (query.q) body.query = query.q;
   if (query.source) body.source = query.source;
   if (query.flair) body.flair = query.flair;
   if (query.order) body.order = query.order;
+  if (galleryIndex) body.galleryIndex = String(galleryIndex); // 0 = default/first slide, omit
   await apiFetch<void>(
       `/api/providers/${encodeURIComponent(provider)}/media/${encodeURIComponent(id)}/track`,
       { method: 'POST', body: JSON.stringify(body) },

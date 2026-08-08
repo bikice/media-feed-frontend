@@ -63,23 +63,27 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         setGalleryIndex(0);
     }, [activeIndex]);
 
-    // Fire-and-forget view tracking once per unique active item.
-    const lastTrackedIndex = useRef<number>(-1);
+    // Fire-and-forget view tracking once per unique (item, gallery slide).
+    const lastTracked = useRef<{ index: number; galleryIndex: number }>({ index: -1, galleryIndex: -1 });
 
     // Reset tracking ref when the feed scope changes so the first item of
     // the new feed is always tracked.
     useEffect(() => {
-        lastTrackedIndex.current = -1;
+        lastTracked.current = { index: -1, galleryIndex: -1 };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [provider, query.source, query.flair, query.order, query.q]);
+
     useEffect(() => {
-        if (activeIndex === lastTrackedIndex.current) return;
+        if (
+            lastTracked.current.index === activeIndex &&
+            lastTracked.current.galleryIndex === galleryIndex
+        ) return;
         const item = items[activeIndex];
         if (!item) return;
-        lastTrackedIndex.current = activeIndex;
-        trackView(item.provider, item.id, query).catch(() => {});
+        lastTracked.current = { index: activeIndex, galleryIndex };
+        trackView(item.provider, item.id, query, galleryIndex).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeIndex, items, query.q, query.source, query.flair, query.order]);
+    }, [activeIndex, galleryIndex, items, query.q, query.source, query.flair, query.order]);
 
     // Track which item is centered in the viewport.
     useEffect(() => {
