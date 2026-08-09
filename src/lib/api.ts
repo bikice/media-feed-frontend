@@ -99,6 +99,47 @@ export async function getMediaDetail(provider: string, id: string): Promise<Medi
   return normalizeMediaItem(item);
 }
 
+export async function trackView(
+    provider: string,
+    id: string,
+    query: Pick<FeedQuery, 'q' | 'source' | 'flair' | 'order'>,
+    galleryIndex?: number,
+): Promise<void> {
+  const body: Record<string, string> = {};
+  if (query.q) body.query = query.q;
+  if (query.source) body.source = query.source;
+  if (query.flair) body.flair = query.flair;
+  if (query.order) body.order = query.order;
+  if (galleryIndex) body.galleryIndex = String(galleryIndex); // 0 = default/first slide, omit
+  await apiFetch<void>(
+      `/api/providers/${encodeURIComponent(provider)}/media/${encodeURIComponent(id)}/track`,
+      { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export async function getAdminTrackingSearch(
+    q: string,
+): Promise<InstantSearchResponse> {
+  const qs = toQueryString({ q });
+  return apiFetch<InstantSearchResponse>(`/api/admin/tracking/search/instant${qs}`);
+}
+
+export async function getAdminTrackingFeed(
+    source: string,
+    opts?: { before?: string; after?: string; order?: string; limit?: number },
+): Promise<FeedResponse> {
+  const qs = toQueryString({
+    source,
+    before: opts?.before,
+    after: opts?.after,
+    order: opts?.order,
+    limit: opts?.limit,
+  });
+  return apiFetch<FeedResponse>(`/api/admin/tracking/feed${qs}`).then(
+      (res) => ({ ...res, items: res.items.map(normalizeMediaItem) }),
+  );
+}
+
 export async function getInstantSearch(
     provider: string,
     q: string,

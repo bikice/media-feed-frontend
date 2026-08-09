@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
+    Activity,
     Clapperboard,
     ChevronRight,
     Hash,
@@ -46,6 +47,7 @@ interface SidebarProps {
     availableFlairs: string[] | null;
     muted: boolean;
     onToggleMute: () => void;
+    onOpenAdminTracking?: () => void;
 }
 
 export function Sidebar({
@@ -59,8 +61,9 @@ export function Sidebar({
                             availableFlairs,
                             muted,
                             onToggleMute,
+                            onOpenAdminTracking,
                         }: SidebarProps) {
-    const { username, logout } = useAuth();
+    const { username, logout, isAdmin } = useAuth();
     const [searchText, setSearchText] = useState(query.q ?? '');
     const debouncedSearch = useDebouncedValue(searchText, 350);
     const [suggestions, setSuggestions] = useState<InstantSearchResponse | null>(null);
@@ -496,6 +499,15 @@ export function Sidebar({
                 {/* Account & playback settings */}
                 <div className="mt-5 rounded-lg border border-(--color-border) bg-(--color-surface-2) p-3">
                     <p className="mb-2 truncate text-xs text-(--color-text-dim)">{username ?? 'Signed in'}</p>
+                    {isAdmin && onOpenAdminTracking && (
+                        <button
+                            onClick={onOpenAdminTracking}
+                            className="mb-2 flex w-full items-center gap-2 rounded-lg border border-(--color-border) px-3 py-2 text-sm text-(--color-text-dim) transition hover:bg-white/8 hover:text-(--color-text)"
+                        >
+                            <Activity className="h-4 w-4" />
+                            View Tracking
+                        </button>
+                    )}
                     <div className="flex items-center gap-2" data-tv-row>
                         <button
                             onClick={onToggleMute}

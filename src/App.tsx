@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/AuthGuard';
 import { FeedView } from '@/components/FeedView';
+import { AdminTrackingView } from '@/components/AdminTrackingView';
 import { DebugKeyOverlay } from '@/components/DebugKeyOverlay';
 import { isDebugEnabled } from '@/lib/debug';
 
@@ -8,11 +10,20 @@ import { isDebugEnabled } from '@/lib/debug';
 // was loaded with and isn't expected to change without a reload.
 const debugEnabled = isDebugEnabled();
 
+function AppShell() {
+    const [view, setView] = useState<'feed' | 'admin'>('feed');
+    return view === 'admin' ? (
+        <AdminTrackingView onBack={() => setView('feed')} />
+    ) : (
+        <FeedView onOpenAdminTracking={() => setView('admin')} />
+    );
+}
+
 function App() {
     return (
         <AuthProvider>
             <AuthGuard>
-                <FeedView />
+                <AppShell />
             </AuthGuard>
             {debugEnabled && <DebugKeyOverlay />}
         </AuthProvider>
