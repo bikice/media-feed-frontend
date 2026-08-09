@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { FocusEvent } from 'react';
 import {
     Activity,
+    Check,
     Clapperboard,
     ChevronRight,
     Hash,
@@ -149,6 +150,18 @@ export function Sidebar({
     const handleSuggestedBlur = useCallback((e: FocusEvent<HTMLDivElement>) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
             setSuggestedOpen(false);
+        }
+    }, []);
+
+    const handleOrderBlur = useCallback((e: FocusEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setOrderOpen(false);
+        }
+    }, []);
+
+    const handleFlairBlur = useCallback((e: FocusEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setFlairOpen(false);
         }
     }, []);
 
@@ -478,24 +491,32 @@ export function Sidebar({
                     <>
                         <label className="mb-1.5 block text-xs font-medium text-(--color-text-dim)">Sort</label>
                         {orderOpen ? (
-                            <div ref={orderListRef} className="mb-5 flex flex-wrap gap-2" data-tv-row>
-                                {orderParam.enum.map((opt) => (
-                                    <button
-                                        key={opt}
-                                        onClick={() => {
-                                            onQueryChange({ ...query, order: opt });
-                                            setOrderOpen(false);
-                                            requestAnimationFrame(() => orderTriggerRef.current?.focus());
-                                        }}
-                                        className={`rounded-full border px-3 py-1 text-xs capitalize transition ${
-                                            (query.order ?? orderParam.default) === opt
-                                                ? 'border-(--color-pink) text-(--color-text)'
-                                                : 'border-(--color-border) text-(--color-text-dim) hover:text-(--color-text)'
-                                        }`}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
+                            <div
+                                ref={orderListRef}
+                                onBlur={handleOrderBlur}
+                                className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2"
+                            >
+                                {orderParam.enum.map((opt) => {
+                                    const selected = (query.order ?? orderParam.default) === opt;
+                                    return (
+                                        <button
+                                            key={opt}
+                                            onClick={() => {
+                                                onQueryChange({ ...query, order: opt });
+                                                setOrderOpen(false);
+                                                requestAnimationFrame(() => orderTriggerRef.current?.focus());
+                                            }}
+                                            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm capitalize transition hover:bg-white/5 ${
+                                                selected ? 'text-(--color-text)' : 'text-(--color-text-dim)'
+                                            }`}
+                                        >
+                                            <span className="flex-1 truncate">{opt}</span>
+                                            {selected && (
+                                                <Check className="h-3.5 w-3.5 shrink-0 text-(--color-pink)" />
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <button
@@ -515,38 +536,45 @@ export function Sidebar({
                     <>
                         <label className="mb-1.5 block text-xs font-medium text-(--color-text-dim)">Flair</label>
                         {flairOpen ? (
-                            <div ref={flairListRef} className="flex flex-wrap gap-2" data-tv-row>
+                            <div
+                                ref={flairListRef}
+                                onBlur={handleFlairBlur}
+                                className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2"
+                            >
                                 <button
                                     onClick={() => {
                                         onQueryChange({ ...query, flair: undefined });
                                         setFlairOpen(false);
                                         requestAnimationFrame(() => flairTriggerRef.current?.focus());
                                     }}
-                                    className={`rounded-full border px-3 py-1 text-xs transition ${
-                                        !query.flair
-                                            ? 'border-(--color-pink) text-(--color-text)'
-                                            : 'border-(--color-border) text-(--color-text-dim) hover:text-(--color-text)'
+                                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-white/5 ${
+                                        !query.flair ? 'text-(--color-text)' : 'text-(--color-text-dim)'
                                     }`}
                                 >
-                                    All
+                                    <span className="flex-1 truncate">All</span>
+                                    {!query.flair && <Check className="h-3.5 w-3.5 shrink-0 text-(--color-pink)" />}
                                 </button>
-                                {availableFlairs.map((f) => (
-                                    <button
-                                        key={f}
-                                        onClick={() => {
-                                            onQueryChange({ ...query, flair: f });
-                                            setFlairOpen(false);
-                                            requestAnimationFrame(() => flairTriggerRef.current?.focus());
-                                        }}
-                                        className={`rounded-full border px-3 py-1 text-xs transition ${
-                                            query.flair === f
-                                                ? 'border-(--color-pink) text-(--color-text)'
-                                                : 'border-(--color-border) text-(--color-text-dim) hover:text-(--color-text)'
-                                        }`}
-                                    >
-                                        {f}
-                                    </button>
-                                ))}
+                                {availableFlairs.map((f) => {
+                                    const selected = query.flair === f;
+                                    return (
+                                        <button
+                                            key={f}
+                                            onClick={() => {
+                                                onQueryChange({ ...query, flair: f });
+                                                setFlairOpen(false);
+                                                requestAnimationFrame(() => flairTriggerRef.current?.focus());
+                                            }}
+                                            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-white/5 ${
+                                                selected ? 'text-(--color-text)' : 'text-(--color-text-dim)'
+                                            }`}
+                                        >
+                                            <span className="flex-1 truncate">{f}</span>
+                                            {selected && (
+                                                <Check className="h-3.5 w-3.5 shrink-0 text-(--color-pink)" />
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <button
