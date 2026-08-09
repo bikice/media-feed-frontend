@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { FocusEvent } from 'react';
 import {
     Activity,
     Clapperboard,
@@ -76,14 +77,17 @@ export function Sidebar({
     // the trigger does *not* expand it.
     const [queriesOpen, setQueriesOpen] = useState(false);
     const [sourcesOpen, setSourcesOpen] = useState(false);
+    const [suggestedOpen, setSuggestedOpen] = useState(false);
     const [orderOpen, setOrderOpen] = useState(false);
     const [flairOpen, setFlairOpen] = useState(false);
     const queryTriggerRef = useRef<HTMLButtonElement>(null);
     const sourceTriggerRef = useRef<HTMLButtonElement>(null);
+    const suggestedTriggerRef = useRef<HTMLButtonElement>(null);
     const orderTriggerRef = useRef<HTMLButtonElement>(null);
     const flairTriggerRef = useRef<HTMLButtonElement>(null);
     const queryListRef = useRef<HTMLDivElement>(null);
     const sourceListRef = useRef<HTMLDivElement>(null);
+    const suggestedListRef = useRef<HTMLDivElement>(null);
     const orderListRef = useRef<HTMLDivElement>(null);
     const flairListRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +113,11 @@ export function Sidebar({
     }, [sourcesOpen]);
 
     useLayoutEffect(() => {
+        if (!suggestedOpen) return;
+        suggestedListRef.current?.querySelector<HTMLElement>('button')?.focus();
+    }, [suggestedOpen]);
+
+    useLayoutEffect(() => {
         if (!orderOpen) return;
         orderListRef.current?.querySelector<HTMLElement>('button')?.focus();
     }, [orderOpen]);
@@ -117,6 +126,31 @@ export function Sidebar({
         if (!flairOpen) return;
         flairListRef.current?.querySelector<HTMLElement>('button')?.focus();
     }, [flairOpen]);
+
+    // Collapse an expanded list back to its single trigger row the moment
+    // focus leaves it -- whether that's a click outside (relatedTarget is
+    // whatever, if anything, ends up focused; a click on a non-focusable
+    // area leaves it null) or D-pad/tab navigation to something else
+    // on-screen. Picking an option already closes the list itself (see the
+    // onClick handlers below), so this only fires for the "changed my
+    // mind" / "looked away" case.
+    const handleQueriesBlur = useCallback((e: FocusEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setQueriesOpen(false);
+        }
+    }, []);
+
+    const handleSourcesBlur = useCallback((e: FocusEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setSourcesOpen(false);
+        }
+    }, []);
+
+    const handleSuggestedBlur = useCallback((e: FocusEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setSuggestedOpen(false);
+        }
+    }, []);
 
     // Selecting a suggestion clears the search text, which -- once the
     // debounce settles -- nulls out `suggestions` and unmounts whichever
@@ -211,6 +245,12 @@ export function Sidebar({
         setSourcesOpen(false);
     }, [debouncedSearch]);
 
+    // Same idea for the "Suggested searches" trigger: don't leave it
+    // expanded once its provider-curated list has moved on from under it.
+    useEffect(() => {
+        setSuggestedOpen(false);
+    }, [activeProviderInfo]);
+
     // Likewise, don't leave the order/flair box expanded once its option
     // set has moved on from under it (provider switch, new feed load).
     useEffect(() => {
@@ -283,32 +323,55 @@ export function Sidebar({
 
                 {/* Provider-curated example searches -- only meaningful as a
                     starting point, so hide them the moment the user has
-                    typed a search or picked a source of their own. */}
+                    typed a search or picked a source of their own. Same
+                    collapse-to-trigger behavior as Related searches below. */}
                 {!query.q && !query.source && (activeProviderInfo?.defaultQueries.length ?? 0) > 0 && (
-                    <div className="mb-5">
-                        <label className="mb-1.5 block text-xs font-medium text-(--color-text-dim)">
-                            Suggested searches
-                        </label>
-                        <div className="flex flex-wrap gap-2" data-tv-row>
+                    suggestedOpen ? (
+                        <div
+                            ref={suggestedListRef}
+                            onBlur={handleSuggestedBlur}
+                            className="scrollbar-visible mb-5 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2"
+                        >
                             {activeProviderInfo!.defaultQueries.map((q) => (
                                 <button
                                     key={q}
                                     onClick={() => {
                                         setSearchText(q);
                                         onQueryChange({ ...query, q, source: undefined, flair: undefined });
+                                        setSuggestedOpen(false);
+                                        // Unlike Related searches, this whole section (trigger
+                                        // included) unmounts the instant query.q is set above --
+                                        // there's no trigger left to hand focus back to, so send
+                                        // it to the search input instead of letting it fall to body.
+                                        requestAnimationFrame(() => searchInputRef.current?.focus());
                                     }}
-                                    className="rounded-full border border-(--color-border) bg-(--color-surface-2) px-3 py-1.5 text-sm text-(--color-text-dim) transition hover:text-(--color-text)"
+                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
                                 >
-                                    {q}
+                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-text-dim)" />
+                                    <span className="truncate">{q}</span>
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    ) : (
+                        <button
+                            ref={suggestedTriggerRef}
+                            onClick={() => setSuggestedOpen(true)}
+                            className="mb-5 flex w-full items-center gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-left text-sm text-(--color-text-dim) transition hover:text-(--color-text)"
+                        >
+                            <Sparkles className="h-4 w-4 shrink-0" />
+                            <span className="flex-1 truncate">Suggested searches</span>
+                            <ChevronRight className="h-4 w-4 shrink-0" />
+                        </button>
+                    )
                 )}
 
                 {suggestions && suggestions.queries.length > 0 && (
                     queriesOpen ? (
-                        <div ref={queryListRef} className="scrollbar-visible mb-2 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
+                        <div
+                            ref={queryListRef}
+                            onBlur={handleQueriesBlur}
+                            className="scrollbar-visible mb-2 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2"
+                        >
                             {suggestions.queries.map((q) => (
                                 <button
                                     key={q}
@@ -340,7 +403,11 @@ export function Sidebar({
 
                 {suggestions && suggestions.sources.length > 0 && (
                     sourcesOpen ? (
-                        <div ref={sourceListRef} className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2">
+                        <div
+                            ref={sourceListRef}
+                            onBlur={handleSourcesBlur}
+                            className="scrollbar-visible mb-5 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2"
+                        >
                             {suggestions.sources.map((s) => {
                                 const { icon: TypeIcon, className } =
                                 SOURCE_TYPE_META[s.type] ?? DEFAULT_SOURCE_TYPE_META;
