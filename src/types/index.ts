@@ -70,9 +70,11 @@ export interface ProviderInfo {
   slug: string;
   title: string;
   feedParams: FeedParamSpec[];
-  /** Provider-curated example searches, meant to be offered as quick-pick
-   *  suggestions before the user has typed or picked a source of their own. */
-  defaultQueries: string[];
+  /** Provider-curated example sources, meant to be offered as quick-pick
+   *  suggestions before the user has typed or picked a source of their own.
+   *  Same shape as an instant-search source (see InstantSearchSource) --
+   *  selecting one sets `source`, not `q`. */
+  defaultSources: InstantSearchSource[];
 }
 
 export interface ProvidersResponse {

@@ -338,32 +338,45 @@ export function Sidebar({
                     starting point, so hide them the moment the user has
                     typed a search or picked a source of their own. Same
                     collapse-to-trigger behavior as Related searches below. */}
-                {!query.q && !query.source && (activeProviderInfo?.defaultQueries.length ?? 0) > 0 && (
+                {!query.q && !query.source && (activeProviderInfo?.defaultSources.length ?? 0) > 0 && (
                     suggestedOpen ? (
                         <div
                             ref={suggestedListRef}
                             onBlur={handleSuggestedBlur}
                             className="scrollbar-visible mb-5 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-(--color-border) bg-(--color-surface-2) p-2"
                         >
-                            {activeProviderInfo!.defaultQueries.map((q) => (
-                                <button
-                                    key={q}
-                                    onClick={() => {
-                                        setSearchText(q);
-                                        onQueryChange({ ...query, q, source: undefined, flair: undefined });
-                                        setSuggestedOpen(false);
-                                        // Unlike Related searches, this whole section (trigger
-                                        // included) unmounts the instant query.q is set above --
-                                        // there's no trigger left to hand focus back to, so send
-                                        // it to the search input instead of letting it fall to body.
-                                        requestAnimationFrame(() => searchInputRef.current?.focus());
-                                    }}
-                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
-                                >
-                                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-(--color-text-dim)" />
-                                    <span className="truncate">{q}</span>
-                                </button>
-                            ))}
+                            {activeProviderInfo!.defaultSources.map((s) => {
+                                const { icon: TypeIcon, className } =
+                                SOURCE_TYPE_META[s.type] ?? DEFAULT_SOURCE_TYPE_META;
+                                return (
+                                    <button
+                                        key={s.slug}
+                                        onClick={() => {
+                                            onQueryChange({ ...query, source: stripTrailingSlash(s.slug), q: undefined, flair: undefined });
+                                            setSearchText('');
+                                            setSuggestedOpen(false);
+                                            // This whole section (trigger included) unmounts the
+                                            // instant query.source is set above -- there's no
+                                            // trigger left to hand focus back to. The "Source: …"
+                                            // chip's clear button takes its place, same as picking
+                                            // from the Sources list below.
+                                            requestAnimationFrame(() => clearSourceRef.current?.focus());
+                                        }}
+                                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
+                                    >
+                                        {s.icon ? (
+                                            <img
+                                                src={s.icon}
+                                                alt=""
+                                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <TypeIcon className={`h-3.5 w-3.5 shrink-0 ${className}`} />
+                                        )}
+                                        <span className="truncate">{s.name}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     ) : (
                         <button
@@ -372,7 +385,7 @@ export function Sidebar({
                             className="mb-5 flex w-full items-center gap-2 rounded-lg border border-(--color-border) bg-(--color-surface-2) px-3 py-2.5 text-left text-sm text-(--color-text-dim) transition hover:text-(--color-text)"
                         >
                             <Sparkles className="h-4 w-4 shrink-0" />
-                            <span className="flex-1 truncate">Suggested searches</span>
+                            <span className="flex-1 truncate">Suggested sources</span>
                             <ChevronRight className="h-4 w-4 shrink-0" />
                         </button>
                     )
