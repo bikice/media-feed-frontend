@@ -185,12 +185,21 @@ export function Sidebar({
             // selection doesn't visually bounce focus back up to search.
             if (query.source) {
                 clearSourceRef.current?.focus();
+            } else if (!query.q && (activeProviderInfo?.defaultSources.length ?? 0) > 0) {
+                // Clearing a source (or a query) un-hides the "Suggested
+                // sources" trigger/list in that same on-screen spot -- prefer
+                // landing there over the search input, same reasoning as above.
+                if (suggestedOpen) {
+                    suggestedListRef.current?.querySelector<HTMLElement>('button')?.focus();
+                } else {
+                    suggestedTriggerRef.current?.focus();
+                }
             } else {
                 searchInputRef.current?.focus();
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [suggestions, orderParam, availableFlairs, query.source]);
+    }, [suggestions, orderParam, availableFlairs, query.source, query.q, activeProviderInfo, suggestedOpen]);
 
     // D-pad navigation for Fire TV etc.: while the sidebar is open, arrow
     // keys move focus between its buttons/input by on-screen position.
@@ -488,7 +497,12 @@ export function Sidebar({
                         <button
                             ref={clearSourceRef}
                             onClick={() => {
-                                searchInputRef.current?.focus();
+                                // Don't decide the next focus target here -- clearing the
+                                // source can un-hide the "Suggested sources" trigger in
+                                // this same spot, and the recovery effect above (keyed on
+                                // query.source) already knows how to pick between that and
+                                // the search input. Hard-coding the search input here would
+                                // always win over that logic and re-introduce the bug.
                                 onQueryChange({ ...query, source: undefined });
                             }}
                             className="text-(--color-text-dim) hover:text-(--color-text)"
