@@ -49,6 +49,14 @@ function resolveMediaKind(type: string, url: string): MediaKind {
     return 'image';
 }
 
+function decodeHtmlEntities(value: string): string {
+    if (!value.includes('&')) return value;
+
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = value;
+    return textarea.value;
+}
+
 const MEDIA_KIND_META: Record<MediaKind, { icon: typeof ImageIcon; label: string }> = {
     image: { icon: ImageIcon, label: 'Photo' },
     video: { icon: Video, label: 'Video' },
@@ -152,6 +160,7 @@ export function MediaCard({
                               chromeVisible,
                               seekPreview,
                           }: MediaCardProps) {
+    const title = item.title ? decodeHtmlEntities(item.title) : null;
     const gallery = item.gallery && item.gallery.length > 0 ? item.gallery : null;
     const activeSlide = gallery
         ? gallery[Math.min(galleryIndex, gallery.length - 1)]
@@ -182,7 +191,7 @@ export function MediaCard({
                                             type={slide.type}
                                             url={slide.mediaUrl}
                                             posterUrl={slide.posterUrl ?? null}
-                                            alt={item.title ?? ''}
+                                            alt={title ?? ''}
                                             isActive={isActive && i === galleryIndex}
                                             shouldMount={shouldMount && i === galleryIndex}
                                             globalMuted={globalMuted}
@@ -202,7 +211,7 @@ export function MediaCard({
                         type={activeSlide.type}
                         url={activeSlide.mediaUrl}
                         posterUrl={activeSlide.posterUrl ?? null}
-                        alt={item.title ?? ''}
+                        alt={title ?? ''}
                         isActive={isActive}
                         shouldMount={shouldMount}
                         globalMuted={globalMuted}
@@ -281,8 +290,8 @@ export function MediaCard({
                                     </button>
                                 )}
                             </div>
-                            {item.title && (
-                                <p className="line-clamp-2 text-sm font-medium text-(--color-text)">{item.title}</p>
+                            {title && (
+                                <p className="line-clamp-2 text-sm font-medium text-(--color-text)">{title}</p>
                             )}
                             <button
                                 onClick={(e) => {
