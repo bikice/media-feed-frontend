@@ -19,6 +19,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@tailwindcss/vite": "^4.3.3",
     "@types/hls.js": "^0.13.3",
     "@types/node": "^24.13.2",
