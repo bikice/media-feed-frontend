@@ -20,6 +20,9 @@ interface UseInfiniteFeedResult {
   isLoadingMore: boolean;
   error: string | null;
   availableFlairs: string[] | null;
+  /** Re-fetch the current feed from scratch (same provider/query), e.g. in
+   *  response to a manual reload button or pull-to-refresh gesture. */
+  reload: () => void;
 }
 
 export function useInfiniteFeed({ provider, query }: UseInfiniteFeedOptions): UseInfiniteFeedResult {
@@ -33,6 +36,11 @@ export function useInfiniteFeed({ provider, query }: UseInfiniteFeedOptions): Us
   const afterCursor = useRef<string | null>(null);
   const hasMore = useRef(true);
   const requestId = useRef(0);
+
+  // Bumped by `reload()` to force the reset/refetch effect below to run
+  // again even when provider/query are unchanged.
+  const [reloadToken, setReloadToken] = useState(0);
+  const reload = useCallback(() => setReloadToken((t) => t + 1), []);
 
   // Per-item mediaUrl resolution (see effect below): ids currently in
   // flight, and a ref mirror of `items` so that effect can read the latest
@@ -70,7 +78,7 @@ export function useInfiniteFeed({ provider, query }: UseInfiniteFeedOptions): Us
           if (myRequestId === requestId.current) setIsLoading(false);
         });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider, query.q, query.source, query.flair, query.order, query.limit]);
+  }, [provider, query.q, query.source, query.flair, query.order, query.limit, reloadToken]);
 
   const fetchNextPage = useCallback(() => {
     if (!hasMore.current || isLoadingMore) return;
@@ -170,5 +178,6 @@ export function useInfiniteFeed({ provider, query }: UseInfiniteFeedOptions): Us
     isLoadingMore,
     error,
     availableFlairs,
+    reload,
   };
 }

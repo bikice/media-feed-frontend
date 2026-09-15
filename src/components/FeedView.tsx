@@ -4,7 +4,9 @@ import { loadFeedPreferences, saveFeedPreferences } from '@/lib/feedPreferences'
 import { useFeedUrlState } from '@/hooks/useFeedUrlState';
 import { useInfiniteFeed } from '@/hooks/useInfiniteFeed';
 import { useFeedNavigation } from '@/hooks/useFeedNavigation';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useAndroidBackButton } from '@/hooks/useAndroidBackButton';
+import { RefreshCw } from 'lucide-react';
 import type { ProviderInfo } from '@/types';
 import { GalleryDots } from './GalleryDots';
 import { LocationBadge } from './LocationBadge';
@@ -53,10 +55,24 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         saveFeedPreferences({ provider, query, sidebarOpen });
     }, [provider, query, sidebarOpen]);
 
-    const { items, activeIndex, setActiveIndex, windowIndices, isLoading, error, availableFlairs } =
+    const { items, activeIndex, setActiveIndex, windowIndices, isLoading, error, availableFlairs, reload } =
         useInfiniteFeed({ provider, query });
 
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Manual reload button + pull-to-refresh both re-fetch the current feed.
+    // Reveal the chrome on a reload so the spinning button is visible as
+    // feedback, and (harmlessly) scroll back to the top for the fresh list.
+    const handleReload = useCallback(() => {
+        reload();
+        containerRef.current?.scrollTo({ top: 0 });
+    }, [reload]);
+
+    const { pullDistance, armed } = usePullToRefresh({
+        containerRef,
+        onRefresh: handleReload,
+        disabled: sidebarOpen,
+    });
     const sectionRefs = useRef<Map<number, HTMLElement>>(new Map());
 
     const scrollToIndex = useCallback((index: number) => {
@@ -252,6 +268,20 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
                 <div className="pointer-events-none fixed inset-x-0 safe-top z-20 flex flex-col items-center gap-2">
                     <LocationBadge providerLabel={activeProviderLabel} sourceLabel={query.source ?? null} />
                     {isGalleryActive && <GalleryDots count={activeGallery!.length} index={galleryIndex} />}
+                </div>
+            )}
+
+            {(pullDistance > 0 || (isLoading && items.length > 0)) && (
+                <div
+                    className="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center safe-top"
+                    style={{ transform: `translateY(${isLoading ? 16 : Math.max(0, pullDistance - 24)}px)` }}
+                >
+                    <div className="glass rounded-full p-2.5 text-(--color-text)">
+                        <RefreshCw
+                            className={`h-5 w-5${isLoading || armed ? ' animate-spin' : ''}`}
+                            style={isLoading ? undefined : { transform: `rotate(${pullDistance * 3}deg)` }}
+                        />
+                    </div>
                 </div>
             )}
 
