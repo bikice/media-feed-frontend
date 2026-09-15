@@ -4,6 +4,7 @@ import { loadFeedPreferences, saveFeedPreferences } from '@/lib/feedPreferences'
 import { useFeedUrlState } from '@/hooks/useFeedUrlState';
 import { useInfiniteFeed } from '@/hooks/useInfiniteFeed';
 import { useFeedNavigation } from '@/hooks/useFeedNavigation';
+import { useAndroidBackButton } from '@/hooks/useAndroidBackButton';
 import type { ProviderInfo } from '@/types';
 import { GalleryDots } from './GalleryDots';
 import { LocationBadge } from './LocationBadge';
@@ -119,6 +120,19 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         setSidebarOpen(false);
         requestAnimationFrame(() => containerRef.current?.focus());
     }, []);
+
+    // Android hardware back: dismiss the sidebar first if it's open, then
+    // fall through to stepping back through the feed's selection history
+    // (provider/source/flair/order/search) that useFeedUrlState maintains --
+    // and only exit the app once there's nothing left to unwind.
+    const handleAndroidBack = useCallback(() => {
+        if (sidebarOpen) {
+            closeSidebar();
+            return true;
+        }
+        return false;
+    }, [sidebarOpen, closeSidebar]);
+    useAndroidBackButton(handleAndroidBack);
 
     // Select/Enter toggles the feed's UI chrome (OverlayNav, media-type
     // badge, bottom gradient + metadata) for an unobstructed view of the

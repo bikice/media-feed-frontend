@@ -77,6 +77,18 @@ export function Sidebar({
     const debouncedSearch = useDebouncedValue(searchText, 350);
     const [suggestions, setSuggestions] = useState<InstantSearchResponse | null>(null);
 
+    // `searchText` is seeded from `query.q` only on first mount. When the
+    // query changes from *outside* this component -- most notably restoring
+    // feed URL state on browser/back navigation -- the input would otherwise
+    // stay stuck on its old (often empty) value. Re-sync it whenever `query.q`
+    // moves to a value the input isn't already showing. Local typing settles
+    // `query.q` to the same string via the debounce below, so this is a no-op
+    // for user input and only fires on genuine external changes.
+    useEffect(() => {
+        const nextQ = query.q ?? '';
+        setSearchText((prev) => (prev === nextQ ? prev : nextQ));
+    }, [query.q]);
+
     // The "Related searches" and "Sources" suggestion lists collapse down
     // to a single trigger row (so they behave like the search input in
     // spatial nav -- a single focusable stop, no wasted vertical space)
