@@ -258,7 +258,7 @@ export function MediaCard({
                         <button
                             aria-label="Previous in gallery"
                             onClick={() => onGalleryIndexChange(galleryIndex - 1)}
-                            className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-black/40 p-2 text-white/80 hover:text-white md:block"
+                            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white/80 hover:text-white"
                         >
                             ‹
                         </button>
@@ -267,7 +267,7 @@ export function MediaCard({
                         <button
                             aria-label="Next in gallery"
                             onClick={() => onGalleryIndexChange(galleryIndex + 1)}
-                            className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-black/40 p-2 text-white/80 hover:text-white md:block"
+                            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white/80 hover:text-white"
                         >
                             ›
                         </button>
