@@ -222,6 +222,7 @@ export function AdminTrackingView({ onBack }: AdminTrackingViewProps) {
                                     onSelectSource={() => {}}
                                     onSelectFlair={() => {}}
                                     chromeVisible={true}
+                                    onToggleChrome={() => {}}
                                     seekPreview={null}
                                 />
                             </div>

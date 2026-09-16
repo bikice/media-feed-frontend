@@ -33,6 +33,9 @@ interface MediaCardProps {
      *  text, for an unobstructed view of the media (toggled via Select/
      *  Enter -- see useFeedNavigation). */
     chromeVisible: boolean;
+    /** Toggle the feed's UI chrome -- fired by a single tap on the media
+     *  (via VideoTapOverlay for videos, or the feed container for images). */
+    onToggleChrome: () => void;
     /** In-progress MediaFastForward/MediaRewind feedback from
      *  useFeedNavigation, or null when no seek is active. Only meaningful
      *  (and only rendered) while this card `isActive`. */
@@ -88,6 +91,7 @@ function MediaSlot({
                        shouldMount,
                        globalMuted,
                        eager,
+                       onToggleChrome,
                    }: {
     type: string;
     url: string;
@@ -97,6 +101,7 @@ function MediaSlot({
     shouldMount: boolean;
     globalMuted: boolean;
     eager?: boolean;
+    onToggleChrome: () => void;
 }) {
     const kind = resolveMediaKind(type, url);
     const isVideoLike = kind === 'video' || kind === 'hls';
@@ -118,7 +123,7 @@ function MediaSlot({
 
     if (isVideoLike && shouldMount) {
         if (isHls) {
-            return <HlsPlayer url={url} posterUrl={posterUrl} active={isActive} muted={globalMuted} />;
+            return <HlsPlayer url={url} posterUrl={posterUrl} active={isActive} muted={globalMuted} onToggleChrome={onToggleChrome} />;
         }
         return (
             <div className="relative h-full w-full overflow-hidden">
@@ -134,7 +139,7 @@ function MediaSlot({
                     preload="auto"
                     className="relative h-full w-full object-contain"
                 />
-                {isActive && <VideoTapOverlay videoRef={videoRef} />}
+                {isActive && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
                 {isActive && <VideoProgressBar videoRef={videoRef} />}
             </div>
         );
@@ -168,6 +173,7 @@ export function MediaCard({
                               onSelectSource,
                               onSelectFlair,
                               chromeVisible,
+                              onToggleChrome,
                               seekPreview,
                           }: MediaCardProps) {
     const title = item.title ? decodeHtmlEntities(item.title) : null;
@@ -206,6 +212,7 @@ export function MediaCard({
                                             shouldMount={shouldMount && i === galleryIndex}
                                             globalMuted={globalMuted}
                                             eager={!isVideoLike}
+                                            onToggleChrome={onToggleChrome}
                                         />
                                     ) : (
                                         <div className="h-full w-full bg-black" />
@@ -225,6 +232,7 @@ export function MediaCard({
                         isActive={isActive}
                         shouldMount={shouldMount}
                         globalMuted={globalMuted}
+                        onToggleChrome={onToggleChrome}
                     />
                 )
             )}

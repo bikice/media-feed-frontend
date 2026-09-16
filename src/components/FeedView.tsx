@@ -20,9 +20,6 @@ import { Sidebar } from './Sidebar';
 // reflects whatever sidebar state was saved, without waiting on an effect.
 const initialPrefs = loadFeedPreferences();
 
-// How long the feed's UI chrome stays visible after a new item is shown
-// before it auto-hides for an unobstructed view of the media.
-const CHROME_HIDE_DELAY_MS = 2500;
 
 interface FeedViewProps {
     onOpenAdminTracking?: () => void;
@@ -60,9 +57,8 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Manual reload button + pull-to-refresh both re-fetch the current feed.
-    // Reveal the chrome on a reload so the spinning button is visible as
-    // feedback, and (harmlessly) scroll back to the top for the fresh list.
+    // Manual reload button + pull-to-refresh both re-fetch the current feed
+    // and (harmlessly) scroll back to the top for the fresh list.
     const handleReload = useCallback(() => {
         reload();
         containerRef.current?.scrollTo({ top: 0 });
@@ -150,30 +146,12 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
     }, [sidebarOpen, closeSidebar]);
     useAndroidBackButton(handleAndroidBack);
 
-    // Select/Enter toggles the feed's UI chrome (OverlayNav, media-type
-    // badge, bottom gradient + metadata) for an unobstructed view of the
-    // media -- only while the sidebar is closed (see useFeedNavigation).
+    // A single tap anywhere on the feed toggles its UI chrome (OverlayNav,
+    // media-type badge, bottom gradient + metadata) -- also bound to
+    // Select/Enter (see useFeedNavigation). The chrome has no auto-hide
+    // timeout; it stays in whatever state the user last put it in, and that
+    // state carries across swiping up/down between items.
     const toggleChrome = useCallback(() => setChromeVisible((v) => !v), []);
-
-    // Reveal the chrome and (re)start the auto-hide countdown. Called both
-    // when a new item/slide comes into view and whenever the user taps, so a
-    // tap always brings the chrome back and refreshes the timer.
-    const chromeHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const revealChrome = useCallback(() => {
-        setChromeVisible(true);
-        if (chromeHideTimer.current) clearTimeout(chromeHideTimer.current);
-        chromeHideTimer.current = setTimeout(() => setChromeVisible(false), CHROME_HIDE_DELAY_MS);
-    }, []);
-
-    // Auto-hide the chrome a short moment after a new item (or gallery slide)
-    // comes into view, so the media is shown unobstructed. Each time the
-    // active item changes we reveal the chrome again and restart the timer.
-    useEffect(() => {
-        revealChrome();
-        return () => {
-            if (chromeHideTimer.current) clearTimeout(chromeHideTimer.current);
-        };
-    }, [activeIndex, galleryIndex, revealChrome]);
 
     const activeItem = items[activeIndex];
     const activeGallery = activeItem?.gallery;
@@ -210,7 +188,7 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
 
     return (
         <div className="relative h-dvh w-full overflow-hidden bg-black">
-            <div ref={containerRef} tabIndex={-1} onPointerDown={revealChrome} className="snap-feed h-full w-full overflow-y-scroll outline-none">
+            <div ref={containerRef} tabIndex={-1} onClick={toggleChrome} className="snap-feed h-full w-full overflow-y-scroll outline-none">
                 {isLoading && items.length === 0 && (
                     <div className="flex h-dvh w-full items-center justify-center">
                         <div className="h-8 w-8 animate-spin rounded-full border-2 border-(--color-purple) border-t-transparent" />
@@ -253,6 +231,7 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
                                     onGalleryIndexChange={setGalleryIndex}
                                     onSelectSource={handleSelectSource}
                                     onSelectFlair={handleSelectFlair}
+                                    onToggleChrome={toggleChrome}
                                     chromeVisible={chromeVisible}
                                     seekPreview={seekPreview}
                                 />

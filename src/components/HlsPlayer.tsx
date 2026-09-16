@@ -22,9 +22,12 @@ interface HlsPlayerProps {
      */
     active: boolean;
     muted: boolean;
+    /** Toggle the feed's UI chrome -- the single-tap action (see
+     *  VideoTapOverlay). */
+    onToggleChrome: () => void;
 }
 
-export function HlsPlayer({ url, posterUrl, active, muted }: HlsPlayerProps) {
+export function HlsPlayer({ url, posterUrl, active, muted, onToggleChrome }: HlsPlayerProps) {
     const { videoRef, error } = useHlsVideo({ src: url, active });
 
     if (error) {
@@ -49,7 +52,7 @@ export function HlsPlayer({ url, posterUrl, active, muted }: HlsPlayerProps) {
                 preload="auto"
                 className="relative h-full w-full object-contain"
             />
-            {active && <VideoTapOverlay videoRef={videoRef} />}
+            {active && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
             {active && <VideoProgressBar videoRef={videoRef} />}
         </div>
     );
