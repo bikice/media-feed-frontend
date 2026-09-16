@@ -1,5 +1,6 @@
 import { AlertCircle } from 'lucide-react';
 import { useHlsVideo } from '@/hooks/useHlsVideo';
+import { BlurBackdrop } from './BlurBackdrop';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
 
@@ -36,7 +37,8 @@ export function HlsPlayer({ url, posterUrl, active, muted }: HlsPlayerProps) {
     }
 
     return (
-        <div className="relative h-full w-full">
+        <div className="relative h-full w-full overflow-hidden">
+            <BlurBackdrop src={posterUrl} />
             <video
                 ref={videoRef}
                 poster={posterUrl ?? undefined}
@@ -45,7 +47,7 @@ export function HlsPlayer({ url, posterUrl, active, muted }: HlsPlayerProps) {
                 autoPlay={active}
                 playsInline
                 preload="auto"
-                className="h-full w-full object-contain"
+                className="relative h-full w-full object-contain"
             />
             {active && <VideoTapOverlay videoRef={videoRef} />}
             {active && <VideoProgressBar videoRef={videoRef} />}

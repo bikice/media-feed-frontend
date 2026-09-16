@@ -3,6 +3,7 @@ import { Image as ImageIcon, Images, Radio, Video } from 'lucide-react';
 import type { MediaItem } from '@/types';
 import type { SeekPreview } from '@/hooks/useFeedNavigation';
 import { stripTrailingSlash } from '@/lib/slug';
+import { BlurBackdrop } from './BlurBackdrop';
 import { HlsPlayer } from './HlsPlayer';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
@@ -120,7 +121,8 @@ function MediaSlot({
             return <HlsPlayer url={url} posterUrl={posterUrl} active={isActive} muted={globalMuted} />;
         }
         return (
-            <div className="relative h-full w-full">
+            <div className="relative h-full w-full overflow-hidden">
+                <BlurBackdrop src={posterUrl ?? url} />
                 <video
                     ref={videoRef}
                     src={url}
@@ -130,7 +132,7 @@ function MediaSlot({
                     autoPlay={isActive}
                     playsInline
                     preload="auto"
-                    className="h-full w-full object-contain"
+                    className="relative h-full w-full object-contain"
                 />
                 {isActive && <VideoTapOverlay videoRef={videoRef} />}
                 {isActive && <VideoProgressBar videoRef={videoRef} />}
@@ -141,11 +143,19 @@ function MediaSlot({
     if (isVideoLike && !shouldMount) {
         // Off-window video: show a static poster instead of a live player.
         return (
-            <img src={posterUrl ?? url} alt={alt} className="h-full w-full object-contain" loading="lazy" />
+            <div className="relative h-full w-full overflow-hidden">
+                <BlurBackdrop src={posterUrl ?? url} />
+                <img src={posterUrl ?? url} alt={alt} className="relative h-full w-full object-contain" loading="lazy" />
+            </div>
         );
     }
 
-    return <img src={url} alt={alt} className="h-full w-full object-contain" loading={eager ? 'eager' : 'lazy'} />;
+    return (
+        <div className="relative h-full w-full overflow-hidden">
+            <BlurBackdrop src={url} />
+            <img src={url} alt={alt} className="relative h-full w-full object-contain" loading={eager ? 'eager' : 'lazy'} />
+        </div>
+    );
 }
 
 export function MediaCard({
