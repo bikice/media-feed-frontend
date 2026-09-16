@@ -202,7 +202,7 @@ export function MediaCard({
                             const isVideoLike = slideKind === 'video' || slideKind === 'hls';
                             return (
                                 <div key={i} className="h-full shrink-0" style={{ width: `${100 / gallery.length}%` }}>
-                                    {nearActive || !isVideoLike ? (
+                                    {nearActive ? (
                                         <MediaSlot
                                             type={slide.type}
                                             url={slide.mediaUrl}
