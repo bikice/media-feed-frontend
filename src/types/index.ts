@@ -10,7 +10,7 @@ export interface MediaUserRef {
   profileIcon: string | null;
 }
 
-export interface MediaSubredditRef {
+export interface MediaSourceGroupRef {
   slug: string;
   name: string;
   communityIcon: string | null;
@@ -34,7 +34,7 @@ export interface MediaItem {
   posterUrl: string | null;
   user: MediaUserRef;
   timestamp: number; // unix seconds
-  subreddit: MediaSubredditRef | null;
+  sourceGroup: MediaSourceGroupRef | null;
   title: string | null;
   flairName: string | null;
   votes: number;

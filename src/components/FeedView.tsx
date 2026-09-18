@@ -234,6 +234,7 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
                                     onToggleChrome={toggleChrome}
                                     chromeVisible={chromeVisible}
                                     seekPreview={seekPreview}
+                                    hasSelectedSource={!!query.source}
                                 />
                             ) : (
                                 <div className="h-full w-full bg-black" />

@@ -40,6 +40,10 @@ interface MediaCardProps {
      *  useFeedNavigation, or null when no seek is active. Only meaningful
      *  (and only rendered) while this card `isActive`. */
     seekPreview: SeekPreview | null;
+    /** Whether the feed is currently scoped to a specific source (subreddit
+     *  or user). When true the source-group label is redundant -- the whole
+     *  feed already belongs to that group -- so the card hides it. */
+    hasSelectedSource: boolean;
 }
 
 type MediaKind = 'image' | 'video' | 'hls';
@@ -175,6 +179,7 @@ export function MediaCard({
                               chromeVisible,
                               onToggleChrome,
                               seekPreview,
+                              hasSelectedSource,
                           }: MediaCardProps) {
     const title = item.title ? decodeHtmlEntities(item.title) : null;
     const gallery = item.gallery && item.gallery.length > 0 ? item.gallery : null;
@@ -282,26 +287,26 @@ export function MediaCard({
                     <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-4 p-5">
                         <div className="min-w-0">
                             <div className="mb-1 flex items-center gap-2 text-xs text-(--color-text-dim)">
-                                {item.subreddit && (
+                                {!hasSelectedSource && item.sourceGroup && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            onSelectSource(stripTrailingSlash(item.subreddit!.slug));
+                                            onSelectSource(stripTrailingSlash(item.sourceGroup!.slug));
                                         }}
                                         className="font-medium text-(--color-text) hover:underline"
                                     >
-                                        {item.subreddit.name}
+                                        {item.sourceGroup.name}
                                     </button>
                                 )}
                                 {item.flairName && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (item.subreddit) {
-                                                onSelectFlair(stripTrailingSlash(item.subreddit.slug), item.flairName!);
+                                            if (item.sourceGroup) {
+                                                onSelectFlair(stripTrailingSlash(item.sourceGroup.slug), item.flairName!);
                                             }
                                         }}
-                                        disabled={!item.subreddit}
+                                        disabled={!item.sourceGroup}
                                         className="glass rounded-full px-2 py-0.5 text-[10px] transition hover:bg-white/10 disabled:cursor-default disabled:hover:bg-transparent"
                                     >
                                         {item.flairName}
