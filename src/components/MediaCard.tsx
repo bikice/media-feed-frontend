@@ -5,6 +5,7 @@ import type { SeekPreview } from '@/hooks/useFeedNavigation';
 import { stripTrailingSlash } from '@/lib/slug';
 import { BlurBackdrop } from './BlurBackdrop';
 import { HlsPlayer } from './HlsPlayer';
+import { PinchZoomVideo } from './PinchZoomVideo';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
 import { VideoSeekIndicator } from './VideoSeekIndicator';
@@ -131,22 +132,31 @@ function MediaSlot({
             return <HlsPlayer url={url} posterUrl={posterUrl} active={isActive} muted={globalMuted} onToggleChrome={onToggleChrome} />;
         }
         return (
-            <div className="relative h-full w-full overflow-hidden">
-                <BlurBackdrop src={posterUrl ?? url} />
-                <video
-                    ref={videoRef}
-                    src={url}
-                    poster={posterUrl ?? undefined}
-                    muted={globalMuted}
-                    loop
-                    autoPlay={isActive}
-                    playsInline
-                    preload="auto"
-                    className="relative h-full w-full object-contain"
-                />
-                {isActive && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
-                {isActive && <VideoProgressBar videoRef={videoRef} />}
-            </div>
+            <PinchZoomVideo
+                className="relative h-full w-full overflow-hidden"
+                backdrop={<BlurBackdrop src={posterUrl ?? url} />}
+                overlay={
+                    <>
+                        {isActive && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
+                        {isActive && <VideoProgressBar videoRef={videoRef} />}
+                    </>
+                }
+            >
+                {(zoomStyle) => (
+                    <video
+                        ref={videoRef}
+                        src={url}
+                        poster={posterUrl ?? undefined}
+                        muted={globalMuted}
+                        loop
+                        autoPlay={isActive}
+                        playsInline
+                        preload="auto"
+                        className="relative h-full w-full object-contain"
+                        style={zoomStyle}
+                    />
+                )}
+            </PinchZoomVideo>
         );
     }
 

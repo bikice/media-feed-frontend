@@ -1,6 +1,7 @@
 import { AlertCircle } from 'lucide-react';
 import { useHlsVideo } from '@/hooks/useHlsVideo';
 import { BlurBackdrop } from './BlurBackdrop';
+import { PinchZoomVideo } from './PinchZoomVideo';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
 
@@ -40,20 +41,29 @@ export function HlsPlayer({ url, posterUrl, active, muted, onToggleChrome }: Hls
     }
 
     return (
-        <div className="relative h-full w-full overflow-hidden">
-            <BlurBackdrop src={posterUrl} />
-            <video
-                ref={videoRef}
-                poster={posterUrl ?? undefined}
-                muted={muted}
-                loop
-                autoPlay={active}
-                playsInline
-                preload="auto"
-                className="relative h-full w-full object-contain"
-            />
-            {active && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
-            {active && <VideoProgressBar videoRef={videoRef} />}
-        </div>
+        <PinchZoomVideo
+            className="relative h-full w-full overflow-hidden"
+            backdrop={<BlurBackdrop src={posterUrl} />}
+            overlay={
+                <>
+                    {active && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
+                    {active && <VideoProgressBar videoRef={videoRef} />}
+                </>
+            }
+        >
+            {(zoomStyle) => (
+                <video
+                    ref={videoRef}
+                    poster={posterUrl ?? undefined}
+                    muted={muted}
+                    loop
+                    autoPlay={active}
+                    playsInline
+                    preload="auto"
+                    className="relative h-full w-full object-contain"
+                    style={zoomStyle}
+                />
+            )}
+        </PinchZoomVideo>
     );
 }
