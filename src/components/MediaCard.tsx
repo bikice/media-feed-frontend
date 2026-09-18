@@ -8,6 +8,7 @@ import { HlsPlayer } from './HlsPlayer';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
 import { VideoSeekIndicator } from './VideoSeekIndicator';
+import { ZoomableImage } from './ZoomableImage';
 
 interface MediaCardProps {
     item: MediaItem;
@@ -162,7 +163,7 @@ function MediaSlot({
     return (
         <div className="relative h-full w-full overflow-hidden">
             <BlurBackdrop src={url} />
-            <img src={url} alt={alt} className="relative h-full w-full object-contain" loading={eager ? 'eager' : 'lazy'} />
+            <ZoomableImage src={url} alt={alt} className="relative h-full w-full object-contain" loading={eager ? 'eager' : 'lazy'} onToggleChrome={onToggleChrome} />
         </div>
     );
 }
