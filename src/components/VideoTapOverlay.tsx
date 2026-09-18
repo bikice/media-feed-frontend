@@ -4,6 +4,10 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 interface VideoTapOverlayProps {
     /** Toggle the feed's UI chrome -- the single-tap action. */
     onToggleChrome: () => void;
+    /** Toggle zoom -- fired by a double tap on the center third, mirroring the
+     *  image double-tap-to-zoom. The left/right thirds keep rewinding/fast-
+     *  forwarding instead. */
+    onDoubleTapCenter?: () => void;
 }
 
 // A second tap landing within this window of the first is treated as a
@@ -21,12 +25,13 @@ const DOUBLE_TAP_WINDOW_MS = 280;
  *   forwards -- reusing the exact seek behaviour (step sizing, preview
  *   indicator, double-press stacking) wired up in useFeedNavigation by
  *   dispatching the same MediaRewind/MediaFastForward key events it listens
- *   for. A double tap deliberately does *not* toggle the chrome.
+ *   for. A double tap on the center third toggles zoom instead. A double tap
+ *   deliberately does *not* toggle the chrome.
  *
  * Sits below the progress bar and gallery controls (both stop propagation /
  * paint above it), so it never steals those taps.
  */
-export function VideoTapOverlay({ onToggleChrome }: VideoTapOverlayProps) {
+export function VideoTapOverlay({ onToggleChrome, onDoubleTapCenter }: VideoTapOverlayProps) {
     // Pending single-tap chrome toggle, deferred until we know a second tap
     // isn't coming. Cleared/replaced on each tap -- see handleTap.
     const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,7 +67,8 @@ export function VideoTapOverlay({ onToggleChrome }: VideoTapOverlayProps) {
             const ratio = (e.clientX - rect.left) / rect.width;
             if (ratio < 1 / 3) seek('backward');
             else if (ratio > 2 / 3) seek('forward');
-            // Middle third: no seek (and, per spec, no chrome toggle either).
+            // Middle third: toggle zoom (never a chrome toggle).
+            else onDoubleTapCenter?.();
             return;
         }
 

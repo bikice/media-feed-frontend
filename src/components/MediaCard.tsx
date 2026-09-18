@@ -135,12 +135,12 @@ function MediaSlot({
             <PinchZoomVideo
                 className="relative h-full w-full overflow-hidden"
                 backdrop={<BlurBackdrop src={posterUrl ?? url} />}
-                overlay={
+                overlay={(toggleZoom) => (
                     <>
-                        {isActive && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
+                        {isActive && <VideoTapOverlay onToggleChrome={onToggleChrome} onDoubleTapCenter={toggleZoom} />}
                         {isActive && <VideoProgressBar videoRef={videoRef} />}
                     </>
-                }
+                )}
             >
                 {(zoomStyle) => (
                     <video

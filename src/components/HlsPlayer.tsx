@@ -44,12 +44,12 @@ export function HlsPlayer({ url, posterUrl, active, muted, onToggleChrome }: Hls
         <PinchZoomVideo
             className="relative h-full w-full overflow-hidden"
             backdrop={<BlurBackdrop src={posterUrl} />}
-            overlay={
+            overlay={(toggleZoom) => (
                 <>
-                    {active && <VideoTapOverlay onToggleChrome={onToggleChrome} />}
+                    {active && <VideoTapOverlay onToggleChrome={onToggleChrome} onDoubleTapCenter={toggleZoom} />}
                     {active && <VideoProgressBar videoRef={videoRef} />}
                 </>
-            }
+            )}
         >
             {(zoomStyle) => (
                 <video

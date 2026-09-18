@@ -11,8 +11,10 @@ interface PinchZoomVideoProps {
      *  applied via the style handed to this render prop. */
     children: (style: CSSProperties) => ReactNode;
     /** Content layered above the media (tap overlay, progress bar) -- not
-     *  zoomed, and left able to receive single taps (see below). */
-    overlay?: ReactNode;
+     *  zoomed, and left able to receive single taps (see below). Given
+     *  `toggleZoom` so overlays that own their own gestures (e.g.
+     *  VideoTapOverlay) can trigger zoom -- like a center-third double tap. */
+    overlay?: (toggleZoom: () => void) => ReactNode;
 }
 
 /**
@@ -29,13 +31,13 @@ interface PinchZoomVideoProps {
  * one-finger pans while zoomed in.
  */
 export function PinchZoomVideo({ className, backdrop, children, overlay }: PinchZoomVideoProps) {
-    const { containerRef, zoomed, transform, transformStyle } = usePinchZoom();
+    const { containerRef, zoomed, transform, transformStyle, toggleZoom } = usePinchZoom();
 
     return (
         <div ref={containerRef} className={className} style={{ touchAction: zoomed ? 'none' : undefined }}>
             {backdrop}
             {children(transformStyle)}
-            {overlay}
+            {overlay?.(toggleZoom)}
             <ZoomBadge scale={transform.scale} />
         </div>
     );

@@ -180,6 +180,18 @@ export function usePinchZoom({ doubleTapZoom = false, onDoubleTap }: UsePinchZoo
         };
     }, []);
 
+    // Imperatively toggle zoom between resting and DOUBLE_TAP_SCALE, anchored
+    // at the container's center. Exposed so callers that own their own tap
+    // handling (e.g. videos, whose double tap normally seeks) can wire zoom to
+    // a specific gesture -- like a double tap on the center third.
+    function toggleZoom() {
+        if (gesture.current.scale > MIN_SCALE) {
+            commit(MIN_SCALE, 0, 0);
+        } else {
+            commit(DOUBLE_TAP_SCALE, 0, 0);
+        }
+    }
+
     const zoomed = transform.scale > MIN_SCALE;
     const active = gesture.current.pinching || gesture.current.panning;
 
@@ -191,5 +203,5 @@ export function usePinchZoom({ doubleTapZoom = false, onDoubleTap }: UsePinchZoo
         willChange: 'transform',
     };
 
-    return { containerRef, transform, zoomed, transformStyle };
+    return { containerRef, transform, zoomed, transformStyle, toggleZoom };
 }
