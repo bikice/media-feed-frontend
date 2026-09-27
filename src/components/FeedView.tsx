@@ -52,8 +52,15 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         saveFeedPreferences({ provider, query, sidebarOpen });
     }, [provider, query, sidebarOpen]);
 
+    // When a source returns nothing for the selected sort order (e.g. none of
+    // its entries are marked `top`), drop the ordering so the source's items
+    // show up again instead of an empty feed.
+    const handleEmptyWithOrder = useCallback(() => {
+        setQuery((prev) => ({ ...prev, order: undefined }));
+    }, [setQuery]);
+
     const { items, activeIndex, setActiveIndex, windowIndices, isLoading, error, availableFlairs, reload } =
-        useInfiniteFeed({ provider, query });
+        useInfiniteFeed({ provider, query, onEmptyWithOrder: handleEmptyWithOrder });
 
     const containerRef = useRef<HTMLDivElement>(null);
 

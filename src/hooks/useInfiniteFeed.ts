@@ -8,6 +8,11 @@ const PREFETCH_GAP = 2; // fetch next page once fewer than this many items remai
 interface UseInfiniteFeedOptions {
   provider: string;
   query: FeedQuery;
+  /** Called when the initial load for a scope returns no items while a
+   *  non-default `order` is set. Lets the caller drop the ordering and
+   *  retry, so a source whose items simply aren't marked for that sort
+   *  (e.g. `top`) still shows its content instead of an empty feed. */
+  onEmptyWithOrder?: () => void;
 }
 
 interface UseInfiniteFeedResult {
@@ -25,7 +30,13 @@ interface UseInfiniteFeedResult {
   reload: () => void;
 }
 
-export function useInfiniteFeed({ provider, query }: UseInfiniteFeedOptions): UseInfiniteFeedResult {
+export function useInfiniteFeed({ provider, query, onEmptyWithOrder }: UseInfiniteFeedOptions): UseInfiniteFeedResult {
+  // Keep the latest callback in a ref so the reset/refetch effect below
+  // doesn't need it in its dependency array (which would re-run the fetch).
+  const onEmptyWithOrderRef = useRef(onEmptyWithOrder);
+  useEffect(() => {
+    onEmptyWithOrderRef.current = onEmptyWithOrder;
+  }, [onEmptyWithOrder]);
   const [items, setItems] = useState<MediaItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,6 +76,13 @@ export function useInfiniteFeed({ provider, query }: UseInfiniteFeedOptions): Us
     getFeed(provider, query)
         .then((res) => {
           if (myRequestId !== requestId.current) return;
+          // A source can return nothing for a given sort (e.g. no entries are
+          // marked `top`). Rather than stranding the user on an empty feed,
+          // ask the caller to drop the ordering and retry.
+          if (res.items.length === 0 && query.order) {
+            onEmptyWithOrderRef.current?.();
+            return;
+          }
           setItems(res.items);
           afterCursor.current = res.pagination.after;
           hasMore.current = !!res.pagination.after;
