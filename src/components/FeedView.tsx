@@ -27,11 +27,11 @@ interface FeedViewProps {
 
 export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
     const [providers, setProviders] = useState<ProviderInfo[]>([]);
-    const { provider, query, setProvider, setQuery } = useFeedUrlState();
+    const { provider, query, initialPosition, setProvider, setQuery, setPosition } = useFeedUrlState();
     const [muted, setMuted] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(initialPrefs?.sidebarOpen ?? false);
     const [chromeVisible, setChromeVisible] = useState(true);
-    const [galleryIndex, setGalleryIndex] = useState(0);
+    const [galleryIndex, setGalleryIndex] = useState(initialPosition.galleryIndex ?? 0);
 
     useEffect(() => {
         getProviders()
@@ -59,8 +59,25 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         setQuery((prev) => ({ ...prev, order: undefined }));
     }, [setQuery]);
 
-    const { items, activeIndex, setActiveIndex, windowIndices, isLoading, error, availableFlairs, reload } =
-        useInfiniteFeed({ provider, query, onEmptyWithOrder: handleEmptyWithOrder });
+    const {
+        items,
+        activeIndex,
+        setActiveIndex,
+        windowIndices,
+        isLoading,
+        error,
+        availableFlairs,
+        reload,
+        restoreIndex,
+        consumeRestoreIndex,
+        cursorForIndex,
+    } = useInfiniteFeed({
+        provider,
+        query,
+        onEmptyWithOrder: handleEmptyWithOrder,
+        initialCursor: initialPosition.cursor,
+        initialItemId: initialPosition.item,
+    });
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +103,37 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
     useEffect(() => {
         setGalleryIndex(0);
     }, [activeIndex]);
+
+    // The feed restored a position from the URL: activeIndex already points
+    // at the right item, but the scroll container is still at the top, so
+    // put the viewport there (no smooth scroll -- this is a restore, not a
+    // navigation) and re-apply the remembered gallery slide, which the
+    // activeIndex effect above just cleared.
+    useEffect(() => {
+        if (restoreIndex === null) return;
+        const el = sectionRefs.current.get(restoreIndex);
+        if (!el) return;
+        el.scrollIntoView({ block: 'start' });
+        setGalleryIndex(initialPosition.galleryIndex ?? 0);
+        consumeRestoreIndex();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [restoreIndex, items.length, consumeRestoreIndex]);
+
+    // Mirror the position back into the URL so a later back press returns to
+    // this exact item (and gallery slide), and a cold load can jump straight
+    // to its page via `cursor`. Replace-only inside useFeedUrlState, so this
+    // firing on every swipe doesn't add history entries. Held off while
+    // loading or restoring so it can't overwrite the position it just read.
+    useEffect(() => {
+        if (isLoading || restoreIndex !== null) return;
+        const item = items[activeIndex];
+        if (!item) return;
+        setPosition({
+            item: item.id,
+            galleryIndex: galleryIndex || undefined,
+            cursor: cursorForIndex(activeIndex),
+        });
+    }, [activeIndex, galleryIndex, items, isLoading, restoreIndex, cursorForIndex, setPosition]);
 
     // Fire-and-forget view tracking once per unique (item, gallery slide).
     const lastTracked = useRef<{ index: number; galleryIndex: number }>({ index: -1, galleryIndex: -1 });

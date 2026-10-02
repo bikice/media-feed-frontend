@@ -13,6 +13,13 @@ interface UseInfiniteFeedOptions {
    *  retry, so a source whose items simply aren't marked for that sort
    *  (e.g. `top`) still shows its content instead of an empty feed. */
   onEmptyWithOrder?: () => void;
+  /** `after` cursor to open the feed on, so a restored position doesn't
+   *  have to page forward from the start to reach its item. */
+  initialCursor?: string;
+  /** Id of the item to land on once the first page is in. Verified against
+   *  what actually came back -- cursors go stale and listings shift, so a
+   *  miss just falls back to the top of the page instead of blocking. */
+  initialItemId?: string;
 }
 
 interface UseInfiniteFeedResult {
@@ -28,15 +35,38 @@ interface UseInfiniteFeedResult {
   /** Re-fetch the current feed from scratch (same provider/query), e.g. in
    *  response to a manual reload button or pull-to-refresh gesture. */
   reload: () => void;
+  /** Set to the index `initialItemId` was found at, so the caller can scroll
+   *  the viewport there (activeIndex alone doesn't move the scroll
+   *  container). Null once consumed or when there's nothing to restore. */
+  restoreIndex: number | null;
+  /** Call after scrolling to `restoreIndex` so it isn't applied twice. */
+  consumeRestoreIndex: () => void;
+  /** The `after` cursor that was used to fetch the page `index` belongs to
+   *  -- i.e. what a later load needs to get straight back to that page. */
+  cursorForIndex: (index: number) => string | undefined;
 }
 
-export function useInfiniteFeed({ provider, query, onEmptyWithOrder }: UseInfiniteFeedOptions): UseInfiniteFeedResult {
+export function useInfiniteFeed({
+  provider,
+  query,
+  onEmptyWithOrder,
+  initialCursor,
+  initialItemId,
+}: UseInfiniteFeedOptions): UseInfiniteFeedResult {
   // Keep the latest callback in a ref so the reset/refetch effect below
   // doesn't need it in its dependency array (which would re-run the fetch).
   const onEmptyWithOrderRef = useRef(onEmptyWithOrder);
   useEffect(() => {
     onEmptyWithOrderRef.current = onEmptyWithOrder;
   }, [onEmptyWithOrder]);
+  // Same trick for the restore inputs: they're read by the reset effect but
+  // deliberately kept out of its deps, since the caller updates the URL
+  // (and therefore these) on every swipe -- having them as deps would
+  // refetch the whole feed each time the position moved.
+  const initialCursorRef = useRef(initialCursor);
+  const initialItemIdRef = useRef(initialItemId);
+  initialCursorRef.current = initialCursor;
+  initialItemIdRef.current = initialItemId;
   const [items, setItems] = useState<MediaItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,11 +77,33 @@ export function useInfiniteFeed({ provider, query, onEmptyWithOrder }: UseInfini
   const afterCursor = useRef<string | null>(null);
   const hasMore = useRef(true);
   const requestId = useRef(0);
+  const [restoreIndex, setRestoreIndex] = useState<number | null>(null);
+  const consumeRestoreIndex = useCallback(() => setRestoreIndex(null), []);
+
+  // One entry per loaded page: the index `items` was at when the page was
+  // appended, and the `after` cursor that fetched it. Lets cursorForIndex
+  // map an item back to the cursor that reaches its page.
+  const pages = useRef<{ startIndex: number; cursor: string | null }[]>([]);
+
+  const cursorForIndex = useCallback((index: number): string | undefined => {
+    let found: string | null = null;
+    for (const page of pages.current) {
+      if (page.startIndex > index) break;
+      found = page.cursor;
+    }
+    return found ?? undefined;
+  }, []);
 
   // Bumped by `reload()` to force the reset/refetch effect below to run
   // again even when provider/query are unchanged.
   const [reloadToken, setReloadToken] = useState(0);
-  const reload = useCallback(() => setReloadToken((t) => t + 1), []);
+  // A manual reload / pull-to-refresh means "give me this feed from the
+  // top", so the restored position is dropped for that run.
+  const skipRestore = useRef(false);
+  const reload = useCallback(() => {
+    skipRestore.current = true;
+    setReloadToken((t) => t + 1);
+  }, []);
 
   // Per-item mediaUrl resolution (see effect below): ids currently in
   // flight, and a ref mirror of `items` so that effect can read the latest
@@ -69,11 +121,16 @@ export function useInfiniteFeed({ provider, query, onEmptyWithOrder }: UseInfini
     setError(null);
     setItems([]);
     setActiveIndex(0);
+    const restoreCursor = skipRestore.current ? undefined : initialCursorRef.current;
+    const restoreItemId = skipRestore.current ? undefined : initialItemIdRef.current;
+    skipRestore.current = false;
     afterCursor.current = null;
     hasMore.current = true;
     resolvingIds.current.clear();
+    pages.current = [{ startIndex: 0, cursor: restoreCursor ?? null }];
+    setRestoreIndex(null);
 
-    getFeed(provider, query)
+    getFeed(provider, { ...query, after: restoreCursor })
         .then((res) => {
           if (myRequestId !== requestId.current) return;
           // A source can return nothing for a given sort (e.g. no entries are
@@ -84,6 +141,13 @@ export function useInfiniteFeed({ provider, query, onEmptyWithOrder }: UseInfini
             return;
           }
           setItems(res.items);
+          // Land on the remembered item when it's actually in this page; a
+          // stale cursor or a reshuffled listing silently falls back to 0.
+          const restoredAt = restoreItemId ? res.items.findIndex((i) => i.id === restoreItemId) : -1;
+          if (restoredAt >= 0) {
+            setActiveIndex(restoredAt);
+            setRestoreIndex(restoredAt);
+          }
           afterCursor.current = res.pagination.after;
           hasMore.current = !!res.pagination.after;
           setAvailableFlairs(res.availableFlairs);
@@ -101,13 +165,17 @@ export function useInfiniteFeed({ provider, query, onEmptyWithOrder }: UseInfini
   const fetchNextPage = useCallback(() => {
     if (!hasMore.current || isLoadingMore) return;
     const myRequestId = requestId.current;
+    const usedCursor = afterCursor.current;
     setIsLoadingMore(true);
-    getFeed(provider, { ...query, after: afterCursor.current ?? undefined })
+    getFeed(provider, { ...query, after: usedCursor ?? undefined })
         .then((res) => {
           if (myRequestId !== requestId.current) return;
           setItems((prev) => {
             const seen = new Set(prev.map((p) => p.id));
             const fresh = res.items.filter((i) => !seen.has(i.id));
+            if (fresh.length > 0 && pages.current[pages.current.length - 1]?.startIndex !== prev.length) {
+              pages.current.push({ startIndex: prev.length, cursor: usedCursor });
+            }
             return [...prev, ...fresh];
           });
           afterCursor.current = res.pagination.after;
@@ -197,5 +265,8 @@ export function useInfiniteFeed({ provider, query, onEmptyWithOrder }: UseInfini
     error,
     availableFlairs,
     reload,
+    restoreIndex,
+    consumeRestoreIndex,
+    cursorForIndex,
   };
 }
