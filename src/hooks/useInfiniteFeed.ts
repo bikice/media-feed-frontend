@@ -50,6 +50,11 @@ interface UseInfiniteFeedOptions {
    *  what actually came back -- cursors go stale and listings shift, so a
    *  miss just falls back to the top of the page instead of blocking. */
   initialItemId?: string;
+  /** Changes whenever a back/forward press restored a position (see
+   *  useFeedUrlState). Part of the reset effect's deps so the restore also
+   *  runs when the popped entry differs only in `position` -- provider and
+   *  query are unchanged then, and nothing else would react to it. */
+  restoreToken?: number;
 }
 
 interface UseInfiniteFeedResult {
@@ -93,6 +98,7 @@ export function useInfiniteFeed({
   onEmptyWithOrder,
   initialCursor,
   initialItemId,
+  restoreToken = 0,
 }: UseInfiniteFeedOptions): UseInfiniteFeedResult {
   // Keep the latest callback in a ref so the reset/refetch effect below
   // doesn't need it in its dependency array (which would re-run the fetch).
@@ -129,6 +135,12 @@ export function useInfiniteFeed({
   // without this a feed opened at the top would fire a pointless upward
   // request as soon as the user sat on the first item.
   const openedMidListing = useRef(false);
+  // Set right after a mid-listing restore so the page above gets fetched
+  // immediately, instead of only once the user happens to scroll within
+  // PREFETCH_GAP of index 0. The restored item usually sits in the middle of
+  // its page, so waiting for that threshold means the items above it stay
+  // missing (and on a restore the whole point is that they exist).
+  const prevPrefetchPending = useRef(false);
   const [isLoadingPrev, setIsLoadingPrev] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
   const consumeAnchorIndex = useCallback(() => setAnchorIndex(null), []);
@@ -193,6 +205,7 @@ export function useInfiniteFeed({
     beforeCursor.current = null;
     hasPrev.current = false;
     openedMidListing.current = !!restoreCursor;
+    prevPrefetchPending.current = false;
     resolvingIds.current.clear();
     pages.current = [{ startIndex: 0, cursor: restoreCursor ?? null, known: true }];
     setRestoreIndex(null);
@@ -227,6 +240,7 @@ export function useInfiniteFeed({
               ? prevCursor(provider, res.pagination.before, res.items[0])
               : null;
           hasPrev.current = !!beforeCursor.current;
+          prevPrefetchPending.current = hasPrev.current;
           setAvailableFlairs(res.availableFlairs);
         })
         .catch(() => {
@@ -237,7 +251,7 @@ export function useInfiniteFeed({
           if (myRequestId === requestId.current) setIsLoading(false);
         });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider, query.q, query.source, query.flair, query.order, query.limit, reloadToken]);
+  }, [provider, query.q, query.source, query.flair, query.order, query.limit, reloadToken, restoreToken]);
 
   const fetchNextPage = useCallback(() => {
     if (!hasMore.current || isLoadingMore) return;
@@ -276,6 +290,7 @@ export function useInfiniteFeed({
   const fetchPrevPage = useCallback(() => {
     const usedCursor = beforeCursor.current;
     if (!hasPrev.current || isLoadingPrev || !usedCursor) return;
+    prevPrefetchPending.current = false;
     const myRequestId = requestId.current;
     setIsLoadingPrev(true);
     getFeed(provider, { ...query, before: usedCursor })
@@ -288,6 +303,10 @@ export function useInfiniteFeed({
             pages.current.unshift({ startIndex: 0, cursor: null, known: false });
             setItems((prev) => [...fresh, ...prev]);
             setActiveIndex((idx) => idx + fresh.length);
+            // A restore scroll that hasn't been applied yet refers to the
+            // pre-prepend indices, so shift it too rather than sending the
+            // viewport to the wrong item.
+            setRestoreIndex((idx) => (idx === null ? null : idx + fresh.length));
             setAnchorIndex(activeIndexRef.current + fresh.length);
           }
           // Nothing new above means the top of the listing is reached --
@@ -314,7 +333,7 @@ export function useInfiniteFeed({
     if (items.length === 0) return;
     const remaining = items.length - 1 - activeIndex;
     if (remaining < PREFETCH_GAP) fetchNextPage();
-    if (activeIndex < PREFETCH_GAP) fetchPrevPage();
+    if (activeIndex < PREFETCH_GAP || prevPrefetchPending.current) fetchPrevPage();
   }, [activeIndex, items.length, fetchNextPage, fetchPrevPage]);
 
   // Resolve mediaUrl for whatever's in the current preload window (active ±

@@ -109,6 +109,12 @@ export function useFeedUrlState() {
     // The position the app booted with -- consumers restore from this once
     // and must not see it change underneath them as the user then scrolls.
     const initialPosition = useRef<FeedPosition>(state.position);
+    // Bumped on every back/forward press. Consumers use it to re-run their
+    // restore even when provider/query happen to be unchanged -- a back can
+    // land on an entry that differs only in `position`, and without this
+    // nothing would react to it (the feed would keep showing wherever the
+    // user had scrolled to, instead of the remembered item and its page).
+    const [restoreToken, setRestoreToken] = useState(0);
 
     useEffect(() => {
         if (skipNextSync.current) {
@@ -170,10 +176,18 @@ export function useFeedUrlState() {
                 clearTimeout(debounceTimer.current);
                 debounceTimer.current = null;
             }
-            const next: FeedUrlState = e.state ?? parseLocation();
+            // The URL is the authoritative record of the popped entry: it is
+            // always present and complete, whereas `e.state` is a structured
+            // clone the engine may hand back empty (seen in the Android
+            // WebView), which would silently drop the position and leave the
+            // feed opening at the top of the listing. Only fall back to
+            // `e.state` when the path carries no provider at all.
+            const hasProviderPath = window.location.pathname.split('/').filter(Boolean).length > 0;
+            const next: FeedUrlState = hasProviderPath ? parseLocation() : (e.state ?? parseLocation());
             skipNextSync.current = true;
             initialPosition.current = next.position;
             setState(next);
+            setRestoreToken((t) => t + 1);
         }
         window.addEventListener('popstate', onPopState);
         return () => window.removeEventListener('popstate', onPopState);
@@ -203,6 +217,9 @@ export function useFeedUrlState() {
         /** Position to restore on a cold load / after a back press. Stable
          *  across the scrolling that follows, unlike the live URL. */
         initialPosition: initialPosition.current,
+        /** Changes on every back/forward press, so a consumer can key its
+         *  restore off it instead of relying on provider/query changing. */
+        restoreToken,
         setProvider,
         setQuery,
         setPosition,

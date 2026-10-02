@@ -27,7 +27,7 @@ interface FeedViewProps {
 
 export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
     const [providers, setProviders] = useState<ProviderInfo[]>([]);
-    const { provider, query, initialPosition, setProvider, setQuery, setPosition } = useFeedUrlState();
+    const { provider, query, initialPosition, restoreToken, setProvider, setQuery, setPosition } = useFeedUrlState();
     const [muted, setMuted] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(initialPrefs?.sidebarOpen ?? false);
     const [chromeVisible, setChromeVisible] = useState(true);
@@ -79,6 +79,7 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         onEmptyWithOrder: handleEmptyWithOrder,
         initialCursor: initialPosition.cursor,
         initialItemId: initialPosition.item,
+        restoreToken,
     });
 
     const containerRef = useRef<HTMLDivElement>(null);
