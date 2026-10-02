@@ -71,6 +71,8 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         restoreIndex,
         consumeRestoreIndex,
         cursorForIndex,
+        anchorIndex,
+        consumeAnchorIndex,
     } = useInfiniteFeed({
         provider,
         query,
@@ -99,10 +101,16 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         sectionRefs.current.get(index)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, []);
 
-    // Reset gallery position whenever the active card changes.
+    // Reset gallery position whenever the active card changes. Skipped right
+    // after a backwards page was prepended: the active *item* didn't change
+    // there, only its index did.
+    const lastActiveItemId = useRef<string | null>(null);
     useEffect(() => {
+        const id = items[activeIndex]?.id ?? null;
+        if (id === lastActiveItemId.current) return;
+        lastActiveItemId.current = id;
         setGalleryIndex(0);
-    }, [activeIndex]);
+    }, [activeIndex, items]);
 
     // The feed restored a position from the URL: activeIndex already points
     // at the right item, but the scroll container is still at the top, so
@@ -119,13 +127,24 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [restoreIndex, items.length, consumeRestoreIndex]);
 
+    // A page of newer items was just prepended (scrolling up out of a
+    // restored position): every item shifted down by that page's size, so
+    // put the viewport back on the item the user was actually on.
+    useEffect(() => {
+        if (anchorIndex === null) return;
+        const el = sectionRefs.current.get(anchorIndex);
+        if (!el) return;
+        el.scrollIntoView({ block: 'start' });
+        consumeAnchorIndex();
+    }, [anchorIndex, items.length, consumeAnchorIndex]);
+
     // Mirror the position back into the URL so a later back press returns to
     // this exact item (and gallery slide), and a cold load can jump straight
     // to its page via `cursor`. Replace-only inside useFeedUrlState, so this
     // firing on every swipe doesn't add history entries. Held off while
     // loading or restoring so it can't overwrite the position it just read.
     useEffect(() => {
-        if (isLoading || restoreIndex !== null) return;
+        if (isLoading || restoreIndex !== null || anchorIndex !== null) return;
         const item = items[activeIndex];
         if (!item) return;
         setPosition({
@@ -133,26 +152,29 @@ export function FeedView({ onOpenAdminTracking }: FeedViewProps = {}) {
             galleryIndex: galleryIndex || undefined,
             cursor: cursorForIndex(activeIndex),
         });
-    }, [activeIndex, galleryIndex, items, isLoading, restoreIndex, cursorForIndex, setPosition]);
+    }, [activeIndex, galleryIndex, items, isLoading, restoreIndex, anchorIndex, cursorForIndex, setPosition]);
 
     // Fire-and-forget view tracking once per unique (item, gallery slide).
-    const lastTracked = useRef<{ index: number; galleryIndex: number }>({ index: -1, galleryIndex: -1 });
+    // Keyed by item id rather than index, since prepending a backwards page
+    // shifts every index without the user having moved.
+    const lastTracked = useRef<{ id: string | null; galleryIndex: number }>({ id: null, galleryIndex: -1 });
 
     // Reset tracking ref when the feed scope changes so the first item of
     // the new feed is always tracked.
     useEffect(() => {
-        lastTracked.current = { index: -1, galleryIndex: -1 };
+        lastTracked.current = { id: null, galleryIndex: -1 };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [provider, query.source, query.flair, query.order, query.q]);
 
     useEffect(() => {
+        const current = items[activeIndex];
         if (
-            lastTracked.current.index === activeIndex &&
+            lastTracked.current.id === (current?.id ?? null) &&
             lastTracked.current.galleryIndex === galleryIndex
         ) return;
-        const item = items[activeIndex];
+        const item = current;
         if (!item) return;
-        lastTracked.current = { index: activeIndex, galleryIndex };
+        lastTracked.current = { id: item.id, galleryIndex };
         trackView(item.provider, item.id, query, galleryIndex).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeIndex, galleryIndex, items, query.q, query.source, query.flair, query.order]);

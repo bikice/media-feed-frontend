@@ -30,6 +30,9 @@ interface UseInfiniteFeedResult {
   windowIndices: Set<number>;
   isLoading: boolean;
   isLoadingMore: boolean;
+  /** A page of *newer* items is being fetched via the `before` cursor,
+   *  i.e. the user is scrolling up out of a restored position. */
+  isLoadingPrev: boolean;
   error: string | null;
   availableFlairs: string[] | null;
   /** Re-fetch the current feed from scratch (same provider/query), e.g. in
@@ -42,8 +45,16 @@ interface UseInfiniteFeedResult {
   /** Call after scrolling to `restoreIndex` so it isn't applied twice. */
   consumeRestoreIndex: () => void;
   /** The `after` cursor that was used to fetch the page `index` belongs to
-   *  -- i.e. what a later load needs to get straight back to that page. */
+   *  -- i.e. what a later load needs to get straight back to that page.
+   *  `undefined` both for the first page (no cursor needed) and for pages
+   *  reached by paging backwards, which have no equivalent `after`. */
   cursorForIndex: (index: number) => string | undefined;
+  /** Set to the new index of the previously active item right after a
+   *  backwards page was prepended, so the caller can re-anchor the scroll
+   *  container (prepending shifts every item down by the page size). */
+  anchorIndex: number | null;
+  /** Call after re-anchoring to `anchorIndex` so it isn't applied twice. */
+  consumeAnchorIndex: () => void;
 }
 
 export function useInfiniteFeed({
@@ -76,6 +87,15 @@ export function useInfiniteFeed({
 
   const afterCursor = useRef<string | null>(null);
   const hasMore = useRef(true);
+  // The mirror image: `pagination.before` pages toward *newer* items. Only
+  // ever non-null when the feed didn't open at the top of the listing --
+  // i.e. a position was restored from a cursor -- so this is what fills in
+  // the items above a restored item instead of leaving a dead end there.
+  const beforeCursor = useRef<string | null>(null);
+  const hasPrev = useRef(false);
+  const [isLoadingPrev, setIsLoadingPrev] = useState(false);
+  const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
+  const consumeAnchorIndex = useCallback(() => setAnchorIndex(null), []);
   const requestId = useRef(0);
   const [restoreIndex, setRestoreIndex] = useState<number | null>(null);
   const consumeRestoreIndex = useCallback(() => setRestoreIndex(null), []);
@@ -83,15 +103,19 @@ export function useInfiniteFeed({
   // One entry per loaded page: the index `items` was at when the page was
   // appended, and the `after` cursor that fetched it. Lets cursorForIndex
   // map an item back to the cursor that reaches its page.
-  const pages = useRef<{ startIndex: number; cursor: string | null }[]>([]);
+  //  `known: false` marks a page that was reached by paging backwards: a
+  //  `before` cursor can't be replayed as an `after` one, so there simply is
+  //  no cursor that reaches it and the URL has to omit it.
+  const pages = useRef<{ startIndex: number; cursor: string | null; known: boolean }[]>([]);
 
   const cursorForIndex = useCallback((index: number): string | undefined => {
-    let found: string | null = null;
+    let found: { cursor: string | null; known: boolean } | null = null;
     for (const page of pages.current) {
       if (page.startIndex > index) break;
-      found = page.cursor;
+      found = page;
     }
-    return found ?? undefined;
+    if (!found || !found.known) return undefined;
+    return found.cursor ?? undefined;
   }, []);
 
   // Bumped by `reload()` to force the reset/refetch effect below to run
@@ -113,6 +137,10 @@ export function useInfiniteFeed({
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+  // Read by fetchPrevPage, which has to know the index the user is on when
+  // its response lands (not when it was fired) to re-anchor the viewport.
+  const activeIndexRef = useRef(activeIndex);
+  activeIndexRef.current = activeIndex;
 
   // Reset and refetch whenever provider or query params change.
   useEffect(() => {
@@ -126,9 +154,12 @@ export function useInfiniteFeed({
     skipRestore.current = false;
     afterCursor.current = null;
     hasMore.current = true;
+    beforeCursor.current = null;
+    hasPrev.current = false;
     resolvingIds.current.clear();
-    pages.current = [{ startIndex: 0, cursor: restoreCursor ?? null }];
+    pages.current = [{ startIndex: 0, cursor: restoreCursor ?? null, known: true }];
     setRestoreIndex(null);
+    setAnchorIndex(null);
 
     getFeed(provider, { ...query, after: restoreCursor })
         .then((res) => {
@@ -150,6 +181,11 @@ export function useInfiniteFeed({
           }
           afterCursor.current = res.pagination.after;
           hasMore.current = !!res.pagination.after;
+          // Opening on a restored cursor means there are items above this
+          // page; `before` is how we get them. A feed opened at the top
+          // reports `before: null`, so this stays off there.
+          beforeCursor.current = res.pagination.before;
+          hasPrev.current = !!res.pagination.before;
           setAvailableFlairs(res.availableFlairs);
         })
         .catch(() => {
@@ -174,7 +210,7 @@ export function useInfiniteFeed({
             const seen = new Set(prev.map((p) => p.id));
             const fresh = res.items.filter((i) => !seen.has(i.id));
             if (fresh.length > 0 && pages.current[pages.current.length - 1]?.startIndex !== prev.length) {
-              pages.current.push({ startIndex: prev.length, cursor: usedCursor });
+              pages.current.push({ startIndex: prev.length, cursor: usedCursor, known: true });
             }
             return [...prev, ...fresh];
           });
@@ -191,12 +227,49 @@ export function useInfiniteFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, query, isLoadingMore]);
 
-  // Trigger prefetch once the active item is within PREFETCH_GAP of the end.
+  // Mirror of fetchNextPage for the other direction: pulls the page of newer
+  // items sitting above what's loaded and prepends it, so scrolling up from
+  // a position restored mid-listing continues the feed instead of stopping.
+  // Every index shifts by the number of prepended items, hence the activeIndex
+  // and page-table fixups plus `anchorIndex` for the caller's scroll container.
+  const fetchPrevPage = useCallback(() => {
+    const usedCursor = beforeCursor.current;
+    if (!hasPrev.current || isLoadingPrev || !usedCursor) return;
+    const myRequestId = requestId.current;
+    setIsLoadingPrev(true);
+    getFeed(provider, { ...query, before: usedCursor })
+        .then((res) => {
+          if (myRequestId !== requestId.current) return;
+          const seen = new Set(itemsRef.current.map((p) => p.id));
+          const fresh = res.items.filter((i) => !seen.has(i.id));
+          if (fresh.length > 0) {
+            pages.current = pages.current.map((p) => ({ ...p, startIndex: p.startIndex + fresh.length }));
+            pages.current.unshift({ startIndex: 0, cursor: null, known: false });
+            setItems((prev) => [...fresh, ...prev]);
+            setActiveIndex((idx) => idx + fresh.length);
+            setAnchorIndex(activeIndexRef.current + fresh.length);
+          }
+          beforeCursor.current = res.pagination.before;
+          hasPrev.current = !!res.pagination.before;
+        })
+        .catch(() => {
+          // Silent, same as fetchNextPage: a later scroll retries.
+        })
+        .finally(() => {
+          if (myRequestId === requestId.current) setIsLoadingPrev(false);
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider, query, isLoadingPrev]);
+
+  // Trigger prefetch once the active item is within PREFETCH_GAP of either
+  // end. The upward side is a no-op unless a `before` cursor exists, which
+  // only happens for a feed opened mid-listing.
   useEffect(() => {
     if (items.length === 0) return;
     const remaining = items.length - 1 - activeIndex;
     if (remaining < PREFETCH_GAP) fetchNextPage();
-  }, [activeIndex, items.length, fetchNextPage]);
+    if (activeIndex < PREFETCH_GAP) fetchPrevPage();
+  }, [activeIndex, items.length, fetchNextPage, fetchPrevPage]);
 
   // Resolve mediaUrl for whatever's in the current preload window (active ±
   // WINDOW_RADIUS -- the same window MediaCard/HlsPlayer actually mount)
@@ -262,11 +335,14 @@ export function useInfiniteFeed({
     windowIndices,
     isLoading,
     isLoadingMore,
+    isLoadingPrev,
     error,
     availableFlairs,
     reload,
     restoreIndex,
     consumeRestoreIndex,
     cursorForIndex,
+    anchorIndex,
+    consumeAnchorIndex,
   };
 }
