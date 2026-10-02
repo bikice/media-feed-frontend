@@ -5,6 +5,36 @@ import type { FeedQuery, MediaItem } from '@/types';
 const WINDOW_RADIUS = 2; // 2 before + active + 2 after = 5 DOM nodes
 const PREFETCH_GAP = 2; // fetch next page once fewer than this many items remain
 
+/** The cursor that pages *toward newer* items, i.e. above what's loaded.
+ *
+ *  Page-number providers (pornhub, redgifs, fiqfuq, tikporn, xxxfollow)
+ *  report a usable `before` themselves -- the page before the one that was
+ *  served -- so their value is taken as-is.
+ *
+ *  The id-cursor providers don't always: reddit only echoes `data.before`
+ *  when the request already carried one, so the first page of a restored
+ *  position comes back with `before: null` even though there *are* items
+ *  above it. Rebuild it from the topmost loaded item, in the shape that
+ *  provider expects as a cursor -- reddit wants the post's fullname
+ *  (`t3_` + id, since MediaItem.id is the bare post id), the local catalog
+ *  wants the bare row id.
+ *
+ *  Any other provider gets `null`: guessing a cursor format we don't know
+ *  would just burn a request that returns the same page again. */
+function prevCursor(
+  provider: string,
+  responseBefore: string | null,
+  firstItem: MediaItem | undefined,
+): string | null {
+  if (responseBefore) return responseBefore;
+  if (!firstItem) return null;
+  if (provider === 'reddit') {
+    return firstItem.id.startsWith('t3_') ? firstItem.id : `t3_${firstItem.id}`;
+  }
+  if (provider === 'local') return firstItem.id;
+  return null;
+}
+
 interface UseInfiniteFeedOptions {
   provider: string;
   query: FeedQuery;
@@ -93,6 +123,12 @@ export function useInfiniteFeed({
   // the items above a restored item instead of leaving a dead end there.
   const beforeCursor = useRef<string | null>(null);
   const hasPrev = useRef(false);
+  // Whether this feed was opened on a restored cursor rather than at the
+  // top of the listing. Only then can there be items above the first loaded
+  // one -- and some providers (local) return a `before` unconditionally, so
+  // without this a feed opened at the top would fire a pointless upward
+  // request as soon as the user sat on the first item.
+  const openedMidListing = useRef(false);
   const [isLoadingPrev, setIsLoadingPrev] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
   const consumeAnchorIndex = useCallback(() => setAnchorIndex(null), []);
@@ -156,6 +192,7 @@ export function useInfiniteFeed({
     hasMore.current = true;
     beforeCursor.current = null;
     hasPrev.current = false;
+    openedMidListing.current = !!restoreCursor;
     resolvingIds.current.clear();
     pages.current = [{ startIndex: 0, cursor: restoreCursor ?? null, known: true }];
     setRestoreIndex(null);
@@ -182,10 +219,14 @@ export function useInfiniteFeed({
           afterCursor.current = res.pagination.after;
           hasMore.current = !!res.pagination.after;
           // Opening on a restored cursor means there are items above this
-          // page; `before` is how we get them. A feed opened at the top
-          // reports `before: null`, so this stays off there.
-          beforeCursor.current = res.pagination.before;
-          hasPrev.current = !!res.pagination.before;
+          // page; `before` is how we get them -- either as reported, or
+          // rebuilt from the first item for providers that don't report one
+          // (see prevCursor). A feed opened at the top has nothing above it,
+          // so upward paging stays off entirely there.
+          beforeCursor.current = openedMidListing.current
+              ? prevCursor(provider, res.pagination.before, res.items[0])
+              : null;
+          hasPrev.current = !!beforeCursor.current;
           setAvailableFlairs(res.availableFlairs);
         })
         .catch(() => {
@@ -249,8 +290,13 @@ export function useInfiniteFeed({
             setActiveIndex((idx) => idx + fresh.length);
             setAnchorIndex(activeIndexRef.current + fresh.length);
           }
-          beforeCursor.current = res.pagination.before;
-          hasPrev.current = !!res.pagination.before;
+          // Nothing new above means the top of the listing is reached --
+          // which is also how a rebuilt cursor terminates, since replaying
+          // it would return the same items and dedupe to nothing.
+          beforeCursor.current = fresh.length === 0
+              ? null
+              : prevCursor(provider, res.pagination.before, fresh[0]);
+          hasPrev.current = !!beforeCursor.current;
         })
         .catch(() => {
           // Silent, same as fetchNextPage: a later scroll retries.
