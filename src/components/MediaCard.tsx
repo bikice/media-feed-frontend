@@ -6,6 +6,7 @@ import { stripTrailingSlash } from '@/lib/slug';
 import { BlurBackdrop } from './BlurBackdrop';
 import { HlsPlayer } from './HlsPlayer';
 import { PinchZoomVideo } from './PinchZoomVideo';
+import { VideoBlurBackdrop } from './VideoBlurBackdrop';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
 import { VideoSeekIndicator } from './VideoSeekIndicator';
@@ -134,7 +135,7 @@ function MediaSlot({
         return (
             <PinchZoomVideo
                 className="relative h-full w-full overflow-hidden"
-                backdrop={<BlurBackdrop src={posterUrl ?? url} />}
+                backdrop={<VideoBlurBackdrop videoRef={videoRef} posterUrl={posterUrl ?? url} />}
                 overlay={(toggleZoom) => (
                     <>
                         {isActive && <VideoTapOverlay onToggleChrome={onToggleChrome} onDoubleTapCenter={toggleZoom} />}
