@@ -1,4 +1,5 @@
 import { AlertCircle } from 'lucide-react';
+import { useEffect } from 'react';
 import { useHlsVideo } from '@/hooks/useHlsVideo';
 import { PinchZoomVideo } from './PinchZoomVideo';
 import { VideoBlurBackdrop } from './VideoBlurBackdrop';
@@ -23,13 +24,22 @@ interface HlsPlayerProps {
      */
     active: boolean;
     muted: boolean;
+    /** Reports the active video element so its playback time can be displayed. */
+    onVideoElement?: (video: HTMLVideoElement | null) => void;
     /** Toggle the feed's UI chrome -- the single-tap action (see
      *  VideoTapOverlay). */
     onToggleChrome: () => void;
 }
 
-export function HlsPlayer({ url, posterUrl, active, muted, onToggleChrome }: HlsPlayerProps) {
+export function HlsPlayer({ url, posterUrl, active, muted, onVideoElement, onToggleChrome }: HlsPlayerProps) {
     const { videoRef, error } = useHlsVideo({ src: url, active });
+
+    useEffect(() => {
+        if (!active) return;
+
+        onVideoElement?.(videoRef.current);
+        return () => onVideoElement?.(null);
+    }, [active, error, onVideoElement, videoRef]);
 
     if (error) {
         return (

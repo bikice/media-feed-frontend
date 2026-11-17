@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image as ImageIcon, Images, Radio, Video } from 'lucide-react';
 import type { MediaItem } from '@/types';
 import type { SeekPreview } from '@/hooks/useFeedNavigation';
+import { formatTimestamp } from '@/lib/date';
 import { stripTrailingSlash } from '@/lib/slug';
 import { BlurBackdrop } from './BlurBackdrop';
 import { HlsPlayer } from './HlsPlayer';
@@ -10,6 +11,7 @@ import { VideoBlurBackdrop } from './VideoBlurBackdrop';
 import { VideoProgressBar } from './VideoProgressBar';
 import { VideoTapOverlay } from './VideoTapOverlay';
 import { VideoSeekIndicator } from './VideoSeekIndicator';
+import { VideoTimeDisplay } from './VideoTimeDisplay';
 import { ZoomableImage } from './ZoomableImage';
 
 interface MediaCardProps {
@@ -98,6 +100,7 @@ function MediaSlot({
                        shouldMount,
                        globalMuted,
                        eager,
+                       onVideoElement,
                        onToggleChrome,
                    }: {
     type: string;
@@ -108,6 +111,7 @@ function MediaSlot({
     shouldMount: boolean;
     globalMuted: boolean;
     eager?: boolean;
+    onVideoElement: (video: HTMLVideoElement | null) => void;
     onToggleChrome: () => void;
 }) {
     const kind = resolveMediaKind(type, url);
@@ -128,9 +132,16 @@ function MediaSlot({
         }
     }, [isActive]);
 
+    useEffect(() => {
+        if (!isVideoLike || isHls || !isActive) return;
+
+        onVideoElement(videoRef.current);
+        return () => onVideoElement(null);
+    }, [isActive, isHls, isVideoLike, onVideoElement, shouldMount]);
+
     if (isVideoLike && shouldMount) {
         if (isHls) {
-            return <HlsPlayer url={url} posterUrl={posterUrl} active={isActive} muted={globalMuted} onToggleChrome={onToggleChrome} />;
+            return <HlsPlayer url={url} posterUrl={posterUrl} active={isActive} muted={globalMuted} onVideoElement={onVideoElement} onToggleChrome={onToggleChrome} />;
         }
         return (
             <PinchZoomVideo
@@ -193,7 +204,9 @@ export function MediaCard({
                               seekPreview,
                               hasSelectedSource,
                           }: MediaCardProps) {
+    const [activeVideo, setActiveVideo] = useState<HTMLVideoElement | null>(null);
     const title = item.title ? decodeHtmlEntities(item.title) : null;
+    const timestamp = formatTimestamp(item.timestamp);
     const gallery = item.gallery && item.gallery.length > 0 ? item.gallery : null;
     const activeSlide = gallery
         ? gallery[Math.min(galleryIndex, gallery.length - 1)]
@@ -229,6 +242,7 @@ export function MediaCard({
                                             shouldMount={shouldMount && i === galleryIndex}
                                             globalMuted={globalMuted}
                                             eager={!isVideoLike}
+                                            onVideoElement={setActiveVideo}
                                             onToggleChrome={onToggleChrome}
                                         />
                                     ) : (
@@ -249,6 +263,7 @@ export function MediaCard({
                         isActive={isActive}
                         shouldMount={shouldMount}
                         globalMuted={globalMuted}
+                        onVideoElement={setActiveVideo}
                         onToggleChrome={onToggleChrome}
                     />
                 )
@@ -328,16 +343,27 @@ export function MediaCard({
                             {title && (
                                 <p className="line-clamp-2 text-sm font-medium text-(--color-text)">{title}</p>
                             )}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSelectSource(stripTrailingSlash(item.user.slug));
-                                }}
-                                className="mt-1 text-xs text-(--color-text-dim) hover:text-(--color-text) hover:underline"
-                            >
-                                {item.user.name}
-                            </button>
+                            <div className="mt-1 flex items-center gap-2">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onSelectSource(stripTrailingSlash(item.user.slug));
+                                    }}
+                                    className="text-xs text-(--color-text-dim) hover:text-(--color-text) hover:underline"
+                                >
+                                    {item.user.name}
+                                </button>
+                                {timestamp && (
+                                    <time
+                                        dateTime={new Date(item.timestamp * 1000).toISOString()}
+                                        className="text-xs text-(--color-text-dim)"
+                                    >
+                                        {timestamp}
+                                    </time>
+                                )}
+                            </div>
                         </div>
+                        <VideoTimeDisplay video={activeVideo} />
                     </div>
                 </>
             )}

@@ -5,6 +5,11 @@ import type { FeedQuery, MediaItem } from '@/types';
 const WINDOW_RADIUS = 2; // 2 before + active + 2 after = 5 DOM nodes
 const PREFETCH_GAP = 2; // fetch next page once fewer than this many items remain
 
+function isUnknownUser(user: MediaItem['user'] | null | undefined): boolean {
+  if (!user) return true;
+  return user.name.toLowerCase() === 'unknown' || user.slug.toLowerCase().endsWith('/unknown/');
+}
+
 /** The cursor that pages *toward newer* items, i.e. above what's loaded.
  *
  *  Page-number providers (pornhub, redgifs, fiqfuq, tikporn, xxxfollow)
@@ -371,7 +376,12 @@ export function useInfiniteFeed({
         try {
           const detail = await getMediaDetail(provider, item.id);
           if (cancelled) continue;
-          setItems((prev) => prev.map((it) => (it.id === item.id ? detail : it)));
+          const resolvedItem: MediaItem = {
+            ...item,
+            ...detail,
+            user: isUnknownUser(detail.user) ? item.user : detail.user,
+          };
+          setItems((prev) => prev.map((it) => (it.id === item.id ? resolvedItem : it)));
         } catch {
           // Leave mediaUrl null -- MediaCard already renders a loading state
           // for that case, and clearing the in-flight marker below lets a
